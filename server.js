@@ -6,18 +6,11 @@ let db = null;
 try {
     const { initializeApp, cert } = require('firebase-admin/app');
     const { getFirestore } = require('firebase-admin/firestore');
-    let serviceAccount;
-    if (process.env.FIREBASE_KEY) {
-        serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
-    } else {
-        serviceAccount = require('./serviceAccountKey.json');
-    }
+    let serviceAccount = process.env.FIREBASE_KEY ? JSON.parse(process.env.FIREBASE_KEY) : require('./serviceAccountKey.json');
     initializeApp({ credential: cert(serviceAccount) });
     db = getFirestore();
-    console.log('✅ Firebase conectado com sucesso!');
-} catch (error) {
-    console.log('⚠️ Firebase não conectado.', error.message);
-}
+    console.log('✅ Firebase conectado!');
+} catch (error) { console.log('⚠️ Sem Firebase.'); }
 
 const app = express();
 const server = http.createServer(app);
@@ -26,36 +19,37 @@ app.use(express.static(__dirname));
 
 const salas = {};
 
+// Adicionado 'g' (grupo de cor) para regra de casas
 const T = [
- {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000}, {n:'Cosern',t:'c',p:200000},
- {n:'Maracajaú',t:'p',p:60000}, {n:'FORTUNA',t:'s'}, {n:'Roberto Freire',t:'p',p:220000},
- {n:'CaboTelecom',t:'c',p:150000}, {n:'Princesa Isabel',t:'p',p:220000}, {n:'Salgado Filho',t:'p',p:240000}, {n:'FORTUNA',t:'s'},
- {n:'PRISÃO',t:'pr'}, {n:'Rua Chile',t:'p',p:180000}, {n:'Mina Brejuí',t:'c',p:200000}, {n:'Ganho do Igapó',t:'p',p:180000},
- {n:'Quarto Centenário',t:'p',p:200000}, {n:'FORTUNA',t:'s'}, {n:'Minas de Sal',t:'c',p:150000},
- {n:'Tirol',t:'p',p:350000}, {n:'Receita Federal',t:'rf'}, {n:'Petrópolis',t:'p',p:400000},
- {n:'FÉRIAS',t:'fe'}, {n:'Rio Branco',t:'p',p:120000}, {n:'FORTUNA',t:'s'}, {n:'Deodoro',t:'p',p:100000},
- {n:'Newton Navarro',t:'p',p:140000}, {n:'Moema Tinoco',t:'p',p:200000}, {n:'Parque Eólico',t:'c',p:200000},
- {n:'FORTUNA',t:'s'}, {n:'Prudente de Morais',t:'p',p:160000}, {n:'Praça Cívica',t:'p',p:320000},
- {n:'CAMBURÃO',t:'ca'}, {n:'Relógio',t:'p',p:300000}, {n:'FORTUNA',t:'s'}, {n:'Afonso Pena',t:'p',p:300000},
- {n:'Caern',t:'c',p:200000}, {n:'Ponta Negra',t:'p',p:280000}, {n:'Praia do Meio',t:'p',p:260000},
- {n:'Restituição',t:'re'}, {n:'Redinha',t:'p',p:260000}, {n:'FORTUNA',t:'s'}
+ {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
+ {n:'Maracajaú',t:'p',p:60000,g:'vescuro'}, {n:'FORTUNA?',t:'s'}, {n:'Roberto Freire',t:'p',p:220000,g:'vermelho'},
+ {n:'CaboTelecom',t:'c',p:150000}, {n:'Princesa Isabel',t:'p',p:220000,g:'vermelho'}, {n:'Salgado Filho',t:'p',p:240000,g:'vermelho'}, {n:'FORTUNA?',t:'s'},
+ {n:'PRISÃO',t:'pr'}, {n:'Rua Chile',t:'p',p:180000,g:'azul'}, {n:'Mina Brejuí',t:'c',p:200000}, {n:'Ganho do Igapó',t:'p',p:180000,g:'azul'},
+ {n:'Quarto Centenário',t:'p',p:200000,g:'azul'}, {n:'FORTUNA?',t:'s'}, {n:'Minas de Sal',t:'c',p:150000},
+ {n:'Tirol',t:'p',p:350000,g:'rosa'}, {n:'Receita Federal',t:'rf',p:-200000}, {n:'Petrópolis',t:'p',p:400000,g:'rosa'},
+ {n:'FÉRIAS',t:'fe'}, {n:'Rio Branco',t:'p',p:120000,g:'roxo'}, {n:'FORTUNA?',t:'s'}, {n:'Deodoro',t:'p',p:100000,g:'roxo'},
+ {n:'Newton Navarro',t:'p',p:140000,g:'vescuro'}, {n:'Moema Tinoco',t:'p',p:200000,g:'vescuro'}, {n:'Parque Eólico',t:'c',p:200000},
+ {n:'FORTUNA?',t:'s'}, {n:'Prudente de Morais',t:'p',p:160000,g:'vclaro'}, {n:'Praça Cívica',t:'p',p:320000,g:'laranja'},
+ {n:'CAMBURÃO',t:'ca'}, {n:'Relógio',t:'p',p:300000,g:'laranja'}, {n:'FORTUNA?',t:'s'}, {n:'Afonso Pena',t:'p',p:300000,g:'laranja'},
+ {n:'Caern',t:'c',p:200000}, {n:'Ponta Negra',t:'p',p:280000,g:'amarelo'}, {n:'Praia do Meio',t:'p',p:260000,g:'amarelo'},
+ {n:'Restituição',t:'re',p:150000}, {n:'Redinha',t:'p',p:260000,g:'amarelo'}, {n:'FORTUNA?',t:'s'}
 ];
 
 io.on('connection', (socket) => {
-    socket.on('criarSala', (dadosJogador) => {
-        const codigoSala = Math.random().toString(36).substring(2, 6).toUpperCase();
-        salas[codigoSala] = {
-            jogadores: [{ id: socket.id, name: dadosJogador.nome, cor: dadosJogador.cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false }],
-            donos: Array(40).fill(-1), mort: Array(40).fill(false), vezDe: 0, estado: 'esperando'
+    socket.on('criarSala', (dados) => {
+        const cod = Math.random().toString(36).substring(2, 6).toUpperCase();
+        salas[cod] = {
+            jogadores: [{ id: socket.id, name: dados.nome, cor: dados.cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false, casas: 0, hotel: false }],
+            donos: Array(40).fill(-1), casas: Array(40).fill(0), hotel: Array(40).fill(false), mort: Array(40).fill(false), vezDe: 0, estado: 'esperando'
         };
-        socket.join(codigoSala);
-        socket.emit('salaCriada', codigoSala);
-        io.to(codigoSala).emit('atualizarJogo', salas[codigoSala]);
+        socket.join(cod);
+        socket.emit('salaCriada', cod);
+        io.to(cod).emit('atualizarJogo', salas[cod]);
     });
 
     socket.on('entrarSala', ({ codigo, nome, cor }) => {
         if (!salas[codigo]) return socket.emit('erro', 'Sala não encontrada');
-        salas[codigo].jogadores.push({ id: socket.id, name: nome, cor: cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false });
+        salas[codigo].jogadores.push({ id: socket.id, name: nome, cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false });
         socket.join(codigo);
         socket.emit('entrouSala', codigo);
         io.to(codigo).emit('atualizarJogo', salas[codigo]);
@@ -63,8 +57,8 @@ io.on('connection', (socket) => {
 
     socket.on('mudarCor', ({ codigo, novaCor }) => {
         if (salas[codigo]) {
-            const jogador = salas[codigo].jogadores.find(j => j.id === socket.id);
-            if (jogador) { jogador.cor = novaCor; io.to(codigo).emit('atualizarJogo', salas[codigo]); }
+            const j = salas[codigo].jogadores.find(x => x.id === socket.id);
+            if (j) { j.cor = novaCor; io.to(codigo).emit('atualizarJogo', salas[codigo]); }
         }
     });
 
@@ -75,36 +69,59 @@ io.on('connection', (socket) => {
     socket.on('rolarDados', async (codigo) => {
         const sala = salas[codigo];
         if (!sala || sala.estado !== 'jogando') return;
-        const jogadorAtual = sala.jogadores[sala.vezDe];
+        const j = sala.jogadores[sala.vezDe];
         const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), total = a + b;
-        jogadorAtual.pos = (jogadorAtual.pos + total) % 40;
+        j.pos = (j.pos + total) % 40;
         
-        const casa = T[jogadorAtual.pos];
-        let acaoNecessaria = null;
+        const casa = T[j.pos];
+        let acao = null;
+        let acaoMsg = '';
 
         if (casa.t === 'p' || casa.t === 'c') {
-            if (sala.donos[jogadorAtual.pos] === -1) acaoNecessaria = 'comprar';
-            else if (sala.donos[jogadorAtual.pos] !== sala.vezDe) {
-                const valorAluguel = casa.t === 'c' ? 50000 * total : casa.p * 0.1;
-                jogadorAtual.money -= valorAluguel; sala.jogadores[sala.donos[jogadorAtual.pos]].money += valorAluguel;
+            const dono = sala.donos[j.pos];
+            if (dono === -1) {
+                acao = 'comprar';
+            } else if (dono !== sala.vezDe && !sala.mort[j.pos]) {
+                let aluguelBase = casa.t === 'c' ? 50000 * total : casa.p * 0.1;
+                if (casa.t === 'p') {
+                    if (sala.hotel[j.pos]) aluguelBase *= 10;
+                    else if (sala.casas[j.pos] > 0) aluguelBase *= (1 + sala.casas[j.pos]);
+                }
+                j.money -= aluguelBase;
+                sala.jogadores[dono].money += aluguelBase;
+                acaoMsg = `Aluguel de R$ ${aluguelBase.toLocaleString('pt-BR')} pago a ${sala.jogadores[dono].name}`;
             }
-        } else if (casa.t === 'ca') { jogadorAtual.pos = 10; jogadorAtual.jail = 2; }
-        else if (casa.t === 'rf') { jogadorAtual.money -= 200000; }
-        else if (casa.t === 're') { jogadorAtual.money += 150000; }
+        } else if (casa.t === 'ca') {
+            j.pos = 10; j.jail = 2;
+            acao = 'preso';
+            acaoMsg = 'Caiu no Camburão e foi para a Prisão!';
+        } else if (casa.t === 'rf') {
+            j.money -= 200000;
+            acaoMsg = 'Pagou R$ 200.000 à Receita Federal';
+        } else if (casa.t === 're') {
+            j.money += 150000;
+            acaoMsg = 'Recebeu R$ 150.000 de Restituição';
+        } else if (casa.t === 'fe') {
+            j.ferias = 2;
+            acao = 'ferias';
+            acaoMsg = 'Tirou férias!';
+        } else if (casa.t === 's') {
+            acao = 'carta';
+        }
 
         if (db) { try { await db.collection('salas').doc(codigo).set({ jogadores: sala.jogadores, vezDe: sala.vezDe, atualizadoEm: new Date() }, { merge: true }); } catch (e) {} }
 
-        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: jogadorAtual.name, jogadorId: jogadorAtual.id, posFinal: jogadorAtual.pos, acao: acaoNecessaria });
+        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: j.name, jogadorId: j.id, posFinal: j.pos, acao, acaoMsg, cor: j.cor });
 
-        if (!acaoNecessaria && casa.t !== 'ca') {
+        if (!acao && casa.t !== 'ca') {
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
             io.to(codigo).emit('atualizarJogo', sala);
         }
     });
 
     socket.on('comprarPropriedade', async (codigo) => {
-        const sala = salas[codigo]; const jogador = sala.jogadores[sala.vezDe]; const casa = T[jogador.pos];
-        if (jogador.money >= casa.p) { jogador.money -= casa.p; sala.donos[jogador.pos] = sala.vezDe; }
+        const sala = salas[codigo]; const j = sala.jogadores[sala.vezDe]; const casa = T[j.pos];
+        if (j.money >= casa.p) { j.money -= casa.p; sala.donos[j.pos] = sala.vezDe; }
         sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
         io.to(codigo).emit('atualizarJogo', sala);
     });
@@ -115,28 +132,47 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    // EVENTO PARA O BOTÃO "ENCERRAR VEZ" NO ONLINE
-    socket.on('avancarVez', (codigo) => {
+    socket.on('acaoCarta', (codigo) => { // Passa a vez após ver a carta
+        const sala = salas[codigo];
+        sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+        io.to(codigo).emit('atualizarJogo', sala);
+    });
+
+    socket.on('construir', async ({ codigo, pos }) => {
         const sala = salas[codigo];
         if (sala) {
+            const dono = sala.donos[pos];
+            if (dono !== -1 && sala.jogadores[dono].money >= 50000) {
+                sala.jogadores[dono].money -= 50000;
+                if (sala.casas[pos] < 4) sala.casas[pos]++;
+                else if (sala.casas[pos] === 4) { sala.casas[pos] = 0; sala.hotel[pos] = true; }
+            }
+            io.to(codigo).emit('atualizarJogo', sala);
+        }
+    });
+
+    socket.on('pagarFianca', async (codigo) => {
+        const sala = salas[codigo];
+        if (sala) {
+            const j = sala.jogadores[sala.vezDe];
+            if (j.money >= 200000) { j.money -= 200000; j.jail = 0; j.pos = 10; }
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
             io.to(codigo).emit('atualizarJogo', sala);
         }
     });
 
+    socket.on('avancarVez', (codigo) => {
+        const sala = salas[codigo];
+        if (sala) { sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length; io.to(codigo).emit('atualizarJogo', sala); }
+    });
+
     socket.on('disconnect', () => {
-        for (const codigo in salas) {
-            const sala = salas[codigo], index = sala.jogadores.findIndex(j => j.id === socket.id);
-            if (index !== -1) {
-                sala.jogadores.splice(index, 1);
-                socket.leave(codigo);
-                if (sala.jogadores.length === 0) delete salas[codigo];
-                else io.to(codigo).emit('atualizarJogo', sala);
-                break;
-            }
+        for (const cod in salas) {
+            const sala = salas[cod], idx = sala.jogadores.findIndex(j => j.id === socket.id);
+            if (idx !== -1) { sala.jogadores.splice(idx, 1); socket.leave(cod); if (sala.jogadores.length === 0) delete salas[cod]; else io.to(cod).emit('atualizarJogo', sala); break; }
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`SERVIDOR RODANDO NA PORTA ${PORT}`));
+server.listen(PORT, () => console.log(`RODANDO NA PORTA ${PORT}`));
