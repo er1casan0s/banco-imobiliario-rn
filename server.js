@@ -19,7 +19,6 @@ app.use(express.static(__dirname));
 
 const salas = {};
 
-// Adicionado 'g' (grupo de cor) para regra de casas
 const T = [
  {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
  {n:'Maracajaú',t:'p',p:60000,g:'vescuro'}, {n:'FORTUNA?',t:'s'}, {n:'Roberto Freire',t:'p',p:220000,g:'vermelho'},
@@ -111,7 +110,7 @@ io.on('connection', (socket) => {
 
         if (db) { try { await db.collection('salas').doc(codigo).set({ jogadores: sala.jogadores, vezDe: sala.vezDe, atualizadoEm: new Date() }, { merge: true }); } catch (e) {} }
 
-        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: j.name, jogadorId: j.id, posFinal: j.pos, acao, acaoMsg, cor: j.cor });
+        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: j.name, jogadorId: j.id, posFinal: j.pos, acao, acaoMsg });
 
         if (!acao && casa.t !== 'ca') {
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
@@ -132,7 +131,7 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    socket.on('acaoCarta', (codigo) => { // Passa a vez após ver a carta
+    socket.on('acaoCarta', (codigo) => {
         const sala = salas[codigo];
         sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
         io.to(codigo).emit('atualizarJogo', sala);
