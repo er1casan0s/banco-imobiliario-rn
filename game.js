@@ -140,6 +140,7 @@ const CARTAS = [
  ['Sua rede social foi hackeada e você perdeu seguidores (e dinheiro)! Pague R$ 18.000.','m',-18000],
  ['O gás acabou no meio do churrasco e você teve que comprar outro! Pague R$ 10.000.','m',-10000],
  ['Foi ao oftalmologista e precisou de óculos novos! Pague R$ 24.000.','m',-24000],
+ ['Um hacker invadiu o ! Você foi a falência.','bankrupt'],
 
  // ========== CARTAS ESPECIAIS (all / each / free / jail / start) ==========
  ['Ganhou o concurso de melhor fantasia no Carnatal! Todos os jogadores lhe pagam R$ 30.000.','all',30000],
