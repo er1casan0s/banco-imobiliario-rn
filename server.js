@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
         if (salas[codigo]) { salas[codigo].estado = 'jogando'; io.to(codigo).emit('atualizarJogo', salas[codigo]); }
     });
 
-       socket.on('rolarDados', async (codigo) => {
+    socket.on('rolarDados', async (codigo) => {
         const sala = salas[codigo];
         if (!sala || sala.estado !== 'jogando') return;
         const j = sala.jogadores[sala.vezDe];
@@ -119,26 +119,16 @@ io.on('connection', (socket) => {
             acaoMsg 
         });
 
-        // Se NÃO precisar comprar e NÃO caiu no camburão, passa a vez.
         if (!acao && casa.t !== 'ca') {
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
             io.to(codigo).emit('atualizarJogo', sala);
         }
     });
 
-       socket.on('comprarPropriedade', async (codigo) => {
+    socket.on('comprarPropriedade', async (codigo) => {
         const sala = salas[codigo]; 
         const j = sala.jogadores[sala.vezDe]; 
         const casa = T[j.pos];
-        
-        // NOVO: Se já tem dono mas está hipotecada, o antigo dono perde e o novo compra
-        if (sala.donos[j.pos] !== -1) {
-            const antigoDono = sala.jogadores[sala.donos[j.pos]];
-            if (sala.mort[j.pos]) {
-                // Reseta a propriedade
-                sala.mort[j.pos] = false;
-            }
-        }
         
         if (j.money >= casa.p) { 
             j.money -= casa.p; 
@@ -154,7 +144,7 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-       socket.on('acaoCarta', (codigo) => {
+    socket.on('acaoCarta', (codigo) => {
         const sala = salas[codigo];
         if (sala) {
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
@@ -175,7 +165,7 @@ io.on('connection', (socket) => {
         }
     });
 
-        socket.on('hipotecarPropriedade', ({ codigo, pos, hipotecar }) => {
+    socket.on('hipotecarPropriedade', ({ codigo, pos, hipotecar }) => {
         const sala = salas[codigo];
         if (!sala) return;
         
@@ -185,11 +175,9 @@ io.on('connection', (socket) => {
         const jogador = sala.jogadores[jogadorIndex];
         
         if (hipotecar) {
-            // Hipotecar: recebe metade, marca como hipotecada
             jogador.money += T[pos].p / 2;
             sala.mort[pos] = true;
         } else {
-            // Resgatar: paga 55%, desmarca
             const custoResgate = T[pos].p * 0.55;
             if (jogador.money >= custoResgate) {
                 jogador.money -= custoResgate;
@@ -214,32 +202,23 @@ io.on('connection', (socket) => {
         const sala = salas[codigo];
         if (sala) { sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length; io.to(codigo).emit('atualizarJogo', sala); }
     });
-        // --- INÍCIO DA NEGOCIAÇÃO ONLINE ---
+
     socket.on('proporNegociacao', ({ codigo, jogadorAlvoId, dar, receber, dinheiro }) => {
         const sala = salas[codigo];
         if (!sala) return;
-        
         const jogadorAtual = sala.jogadores[sala.vezDe];
-        
-        // Envia a proposta para o outro jogador
-        io.to(jogadorAlvoId).emit('receberProposta', {
-            de: jogadorAtual.name,
-            dar, receber, dinheiro,
-            codigo
-        });
+        io.to(jogadorAlvoId).emit('receberProposta', { de: jogadorAtual.name, dar, receber, dinheiro, codigo });
     });
 
     socket.on('responderNegociacao', ({ codigo, aceitou, deId, dar, receber, dinheiro }) => {
         const sala = salas[codigo];
         if (!sala) return;
-
-        const alvo = sala.jogadores.find(j => j.id === socket.id); // Quem aceitou/recusou
+        const alvo = sala.jogadores.find(j => j.id === socket.id);
         const proponente = sala.jogadores.find(j => j.id === deId);
 
         if (!alvo || !proponente) return;
 
         if (aceitou) {
-            // Faz a troca de propriedades e dinheiro no servidor
             if (dar >= 0) sala.donos[dar] = sala.jogadores.findIndex(j => j.id === deId);
             if (receber >= 0) sala.donos[receber] = sala.jogadores.findIndex(j => j.id === socket.id);
             
@@ -247,39 +226,11 @@ io.on('connection', (socket) => {
             alvo.money += dinheiro;
 
             io.to(codigo).emit('atualizarJogo', sala);
-            io.to(codigo).emit('resultadoDados', { 
-                a: 0, b: 0, total: 0, 
-                jogador: 'Sistema', 
-                acaoMsg: `Negócio fechado entre ${proponente.name} e ${alvo.name}!` 
-            });
+            io.to(codigo).emit('resultadoDados', { a: 0, b: 0, total: 0, jogador: 'Sistema', acaoMsg: `Negócio fechado entre ${proponente.name} e ${alvo.name}!` });
         } else {
-            io.to(codigo).emit('resultadoDados', { 
-                a: 0, b: 0, total: 0, 
-                jogador: 'Sistema', 
-                acaoMsg: `${alvo.name} recusou a proposta de ${proponente.name}.` 
-            });
+            io.to(codigo).emit('resultadoDados', { a: 0, b: 0, total: 0, jogador: 'Sistema', acaoMsg: `${alvo.name} recusou a proposta de ${proponente.name}.` });
         }
     });
-    // --- FIM DA NEGOCIAÇÃO ONLINE ---
-
-    socket.on('receberProposta', (dados) => {
-    if (MODO !== 'online') return;
-
-    const texto = `${dados.de} quer negociar com você!\n\n` +
-                  `Ele oferece: ${dados.dinheiro > 0 ? R(dados.dinheiro) : 'R$ 0'} ${dados.dar >= 0 ? '+ ' + T[dados.dar].n : ''}\n` +
-                  `Ele quer: ${dados.dinheiro < 0 ? R(-dados.dinheiro) : 'R$ 0'} ${dados.receber >= 0 ? '+ ' + T[dados.receber].n : ''}`;
-
-    ask('🤝 Proposta de Negociação', texto, ['Aceitar', 'Recusar']).then(r => {
-        socket.emit('responderNegociacao', {
-            codigo: dados.codigo,
-            aceitou: r === 0,
-            deId: socket.id, // Isso precisa ser ajustado se for para outra pessoa
-            dar: dados.dar,
-            receber: dados.receber,
-            dinheiro: dados.dinheiro
-        });
-    });
-});
 
     socket.on('disconnect', () => {
         for (const cod in salas) {
