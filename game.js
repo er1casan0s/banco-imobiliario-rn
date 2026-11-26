@@ -248,6 +248,7 @@ function montaTabuleiro(){
 }
 
 const patrimonio = (p,idx) => p.money + T.reduce((s,c,i)=>s+(G.own[i]===idx?(G.mort[i]?c.p/2:c.p):0),0);
+
 function ui(){
   document.querySelectorAll('.pw').forEach(e=>e.innerHTML='');
   G.p.forEach(p=>{ if(!p.out) $('#c'+p.pos+' .pw').innerHTML+=`<span class="pawn" style="background:${p.cor}"></span>`; });
@@ -280,8 +281,11 @@ function ui(){
         <div class="tot">${R(o.v)}</div>
       </div>`).join('');
 
+  // Atualiza o histórico
   $('#log').innerHTML = G.historico.slice(0, 15).map(t => {
-    const cor = G.p.find(x => t.includes(x.name))?.cor || '#00e5ff';
+    // Pega a cor do jogador que fez a ação
+    const jogador = G.p.find(x => t.includes(x.name));
+    const cor = jogador ? jogador.cor : '#00e5ff';
     return `<div class="lg" style="border-color:${cor}">${t}</div>`;
   }).join('');
       
@@ -297,7 +301,10 @@ function ui(){
   $('#bMort').disabled = !h; $('#bTrade').disabled = !h; $('#bBuild').disabled = !h;
 }
 
-function addLog(txt) { G.historico.unshift(txt); ui(); }
+function addLog(txt) { 
+  G.historico.unshift(txt); 
+  ui(); 
+}
 
 async function turno(){
   const p=G.p[G.cur]; G.rolled=false; G.busy=true; G.duplas=0;
@@ -395,11 +402,27 @@ function hipotecas(){
   };
   
   window.hip=i=>{ 
-      if(G.mort[i]){ if(G.p[me].money<T[i].p*.55) return alert('Sem dinheiro para resgatar'); G.p[me].money-=T[i].p*.55; G.mort[i]=false; addLog(`${G.p[me].name} resgatou ${T[i].n}`); }
-      else{ G.mort[i]=true; G.p[me].money+=T[i].p/2; addLog(`${G.p[me].name} hipotecou ${T[i].n}`); } 
-      $('#mb').innerHTML=lista(); ui(); 
+      if(G.mort[i]){ if(G.p[me].money<T[i].p*.55)
+         return alert('Sem dinheiro para resgatar');
+         G.p[me].money-=T[i].p*.55; G.mort[i]=false; 
+         addLog(`${G.p[me].name} resgatou ${T[i].n}`); 
+        }
+      else{ 
+        G.mort[i]=true; G.p[me].money+=T[i].p/2; 
+        addLog(`${G.p[me].name} hipotecou ${T[i].n}`); 
+      } 
+      // NOVO: Se for online, avisa o servidor
+    if (MODO === 'online') {
+        socket.emit('hipotecarPropriedade', { 
+            codigo: salaAtual, 
+            pos: i, 
+            hipotecar: G.mort[i] // true = hipotecar, false = resgatar
+        });
+    }
+      $('#mb').innerHTML=lista(); 
+      ui(); 
   };
-  ask('🏦 Hipotecas',lista(),['Fechar']);
+  //ask('🏦 Hipotecas',lista(),['Fechar']);
 }
 
 function construir(){
@@ -440,11 +463,65 @@ function construir(){
 
 function negociar(){ 
   const me = G.cur;
-  const outros = G.p.filter((p, i) => i !== me && !p.out);
+  const outros = G.p.map((p,i)=>i).filter(i=>i!==me && !G.p[i].out);
   
   if(outros.length === 0) return ask('Negociar', 'Não há outros jogadores para negociar.');
-  
-  ask('🤝 Negociar', 'Função de negociação em desenvolvimento!', ['OK']); 
+
+  const props = j => T.map((c,i)=>i).filter(i=>G.own[i]===j).map(i=>`<option value="${i}">${T[i].n} (${R(T[i].p)})</option>`).join('');
+
+  // Cria a interface de negociação no Modal
+  let html = `
+    <div style="text-align:left;">
+      <p><b>Com quem?</b><br>
+      <select id="tj" onchange="atualizaNegociacao()">${outros.map(i=>`<option value="${i}">${G.p[i].name}</option>`).join('')}</select></p>
+      
+      <p><b>Você dá:</b><br>
+      <select id="tm"><option value="-1">(Nenhuma propriedade)</option>${props(me)}</select></p>
+      
+      <p><b>Você recebe:</b><br>
+      <select id="tx"><option value="-1">(Nenhuma propriedade)</option>${props(outros[0])}</select></p>
+      
+      <p><b>Dinheiro que VOCÊ paga (negativo = você recebe):</b><br>
+      <input id="td" type="number" value="0" step="10000" style="width:100%;"></p>
+    </div>
+  `;
+
+  // Atualiza as opções de "receber" quando muda o jogador alvo
+  window.atualizaNegociacao = () => {
+    const alvo = +$('#tj').value;
+    $('#tx').innerHTML = '<option value="-1">(Nenhuma propriedade)</option>' + props(alvo);
+  };
+
+  ask('🤝 Negociar', html, ['Propor', 'Cancelar']).then(async (r) => {
+    if (r !== 0) return; // Se cancelou, não faz nada
+
+    const j = +$('#tj').value; // ID do outro jogador
+    const m = +$('#tm').value; // Propriedade que eu dou
+    const x = +$('#tx').value; // Propriedade que eu recebo
+    const d = +$('#td').value||0; // Dinheiro
+
+    const dou = (m >= 0 ? T[m].p : 0) + Math.max(d, 0);
+    const recebo = (x >= 0 ? T[x].p : 0) + Math.max(-d, 0);
+    const o = G.p[j];
+
+    // Se for IA, ela aceita se receber mais do que dá (com margem de 10%)
+    // Se for Humano no Local, ele só aceita (aqui simplificamos para sempre aceitar para não travar o jogo)
+    const ok = o.ai ? dou >= recebo * 1.1 : true; 
+
+    if (!ok) return addLog(`🤝 ${o.name} recusou a proposta.`);
+
+    // Verifica se tem dinheiro
+    if (d > G.p[me].money || -d > o.money) return ask('Erro', 'Negociação cancelada: falta dinheiro.');
+
+    // Efetua a troca
+    if (m >= 0) G.own[m] = j; 
+    if (x >= 0) G.own[x] = me; 
+    G.p[me].money -= d; 
+    o.money += d;
+
+    addLog(`🤝 Negócio fechado entre ${G.p[me].name} e ${o.name}!`);
+    ui();
+  });
 }
 
 socket.on('salaCriada', (c) => { salaAtual = c; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = c; });
@@ -471,34 +548,81 @@ socket.on('atualizarJogo', (s) => {
 
 socket.on('resultadoDados', (d) => {
   if (MODO !== 'online') return;
+  
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[d.a-1]} ${'⚀⚁⚂⚃⚄⚅'[d.b-1]}`;
   addLog(`🎲 ${d.jogador} tirou ${d.a}+${d.b} = ${d.total}`);
   if (d.acaoMsg) addLog(`➡️ ${d.acaoMsg}`);
   
   const jogador = G.p.find(j => j.name === d.jogador);
   if(jogador) {
-      let posAntiga = (jogador.pos - d.total + 40) % 40; jogador.pos = posAntiga; ui(); 
+      let posAntiga = (jogador.pos - d.total + 40) % 40; 
+      jogador.pos = posAntiga; 
+      ui(); 
+
       let passos = 0;
       const animar = setInterval(() => {
-          jogador.pos = (jogador.pos + 1) % 40; ui(); passos++;
+          jogador.pos = (jogador.pos + 1) % 40; 
+          ui(); 
+          passos++;
+          
           if(passos >= d.total) {
-              clearInterval(animar); jogador.pos = d.posFinal; ui();
+              clearInterval(animar); 
+              jogador.pos = d.posFinal; 
+              ui();
+              
+              // NOTIFICAÇÃO DE COMPRA
               if (d.acao === 'comprar' && d.jogadorId === socket.id) {
                   const casa = T[d.posFinal];
-                  ask(casa.n, `Preço: ${R(casa.p)}`, ['Comprar', 'Não']).then(r => {
+                  ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar']).then(r => {
                       if (r === 0) socket.emit('comprarPropriedade', salaAtual);
                       else socket.emit('recusarCompra', salaAtual);
                   });
-              } else if (d.acao === 'preso' && d.jogadorId === socket.id) {
+              } 
+              // NOTIFICAÇÃO DE PRESO
+              else if (d.acao === 'preso' && d.jogadorId === socket.id) {
                   ask('🚓 Camburão!', 'Você foi preso.', ['Pagar Fiança (200k)', 'Ficar Preso']).then(r => {
                       socket.emit('pagarFianca', salaAtual);
                   });
-              } else if (d.acao === 'carta' && d.jogadorId === socket.id) {
-                  carta({name: d.jogador, ai: false}); // Mostra a carta
-                  setTimeout(() => socket.emit('acaoCarta', salaAtual), 5000);
-              } else if (d.acao === 'ferias' && d.jogadorId === socket.id) {
-                  ask('🏖️ Férias', 'Você tirou férias!', ['OK']).then(() => socket.emit('acaoCarta', salaAtual));
-              }
+              } 
+              // NOTIFICAÇÃO DE CARTA
+              // NOTIFICAÇÃO DE CARTA (FORTUNA)
+else if (d.acao === 'carta' && d.jogadorId === socket.id) {
+    // Sorteia uma carta e mostra
+    const [txt,tipo,v]=CARTAS[Math.random()*CARTAS.length|0];
+    ask('🎴 FORTUNA?',txt).then(() => {
+        // Aplica o efeito da carta localmente
+        if(tipo === 'm'){ 
+            jogador.money += v; 
+            if(v>0) totalGanho[jogador.name]+=v; 
+            else totalGasto[jogador.name]+=Math.abs(v); 
+            addLog(`${jogador.name}: ${txt}`);
+        }
+        else if(tipo === 'all'){ 
+            G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
+                o.money -= v; totalGasto[o.name]+=v; 
+                jogador.money += v; totalGanho[jogador.name]+=v; 
+            }); 
+            addLog(`${jogador.name} recebeu de todos.`);
+        }
+        else if(tipo === 'each'){ 
+            G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
+                o.money += v; totalGanho[o.name]+=v; 
+                jogador.money -= v; totalGasto[jogador.name]+=v; 
+            }); 
+            addLog(`${jogador.name} pagou a todos.`);
+        }
+        else if(tipo === 'jail'){ 
+            jogador.pos=10; jogador.jail=2; 
+            addLog(`${jogador.name} foi preso pela fiscalização.`);
+        }
+        else if(tipo === 'free'){ jogador.free++; }
+        else if(tipo === 'start'){ jogador.pos=0; jogador.money+=200000; }
+        
+        ui();
+        // Avisa o servidor que a carta foi resolvida (passa a vez)
+        setTimeout(() => socket.emit('acaoCarta', salaAtual), 1000);
+    });
+}
           }
       }, 200);
   }
