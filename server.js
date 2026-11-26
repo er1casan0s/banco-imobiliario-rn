@@ -115,7 +115,7 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    // NOVO: Avançar a vez manualmente no online
+    // EVENTO PARA O BOTÃO "ENCERRAR VEZ" NO ONLINE
     socket.on('avancarVez', (codigo) => {
         const sala = salas[codigo];
         if (sala) {
