@@ -394,6 +394,8 @@ async function carta(p){
   else if(tipo === 'each'){ G.p.filter(x => x!==p && !x.out).forEach(o => { o.money += v; totalGanho[o.name]+=v; p.money -= v; totalGasto[p.name]+=v; }); addLog(`${p.name} pagou a todos.`); }
   else if(tipo === 'jail'){ p.pos=10; p.jail=2; addLog(`${p.name} foi preso pela fiscalização.`); }
   else if(tipo === 'bankrupt'){ p.money = 0; addLog(`💥 ${p.name} faliu por causa de um hacker!`); }
+  else if(tipo === 'free'){ p.free++; addLog(`${p.name} guardou um Habeas Corpus.`); }
+  else if(tipo === 'start'){ p.pos = 0; p.money += 200000; totalGanho[p.name] += 200000; addLog(`${p.name} voltou ao Início e recebeu 200k.`); }
   ui();
 }
 
