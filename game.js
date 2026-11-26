@@ -5,6 +5,28 @@ const $ = s => document.querySelector(s);
 const R = n => 'R$ ' + n.toLocaleString('pt-BR');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// ===== JANELA MODAL (estava faltando!) =====
+function ask(titulo, corpo, botoes = ['OK']) {
+  return new Promise(res => {
+    $('#mt').innerHTML = titulo;
+    $('#mb').innerHTML = corpo;
+    const box = $('#mbtn'); box.innerHTML = '';
+    botoes.forEach((txt, i) => {
+      const b = document.createElement('button');
+      b.textContent = txt;
+      b.onclick = () => { $('#modal').hidden = true; res(i); };
+      box.appendChild(b);
+    });
+    $('#modal').hidden = false;
+  });
+}
+
+// ===== CASAS E ALUGUEL =====
+const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
+                    laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
+// sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
+const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
+
 const COR = {rosa:'#d6409f',roxo:'#7b3fa0',laranja:'#f28c1e',amarelo:'#f2c500',vermelho:'#d62d2d',vclaro:'#7ccc5a',vescuro:'#2e8b3d',azul:'#3ba0d8',preto:'#222'};
 const CORES = [['Vermelho','#e53935'],['Roxo','#8e24aa'],['Rosa','#ec407a'],['Amarelo','#fdd835'],['Azul','#1e88e5'],['Verde','#43a047'],['Laranja','#fb8c00'],['Marrom','#6d4c41']];
 
@@ -47,7 +69,7 @@ const CARTAS = [
  ['Foi no Parque das Dunas e achou uma maleta : receba R$ 20.000','m',20000],
  ['Foi dar um rolê no NatalShopping com crush : pague R$ 25.000','m',-25000],
  ['Ganhou o concurso DoSol : ganhe R$10.000 de todos os jogadores','all',10000],
- ['Foi no Beco da Lama e perdeu a carteira : perdeu 50.000','m',50000],
+ ['Foi no Beco da Lama e perdeu a carteira : perdeu 50.000','m',-50000],
  ['Recebeu herança de parentes dos outros jogadores','all',25000],
 
  // ========== NOVAS CARTAS DE SORTE ==========
@@ -322,7 +344,7 @@ async function turno(){
 }
 
 async function rolar(){
-  if(MODO === 'online') { socket.emit('rolarDados', salaAtual); return; }
+  if(MODO === 'online') { G.busy = true; ui(); socket.emit('rolarDados', salaAtual); return; }
   
   G.busy=true; G.rolled=true; ui();
   let a,b; for(let i=0;i<8;i++){ a=1+Math.random()*6|0; b=1+Math.random()*6|0; $('#dados').textContent=`${'⚀⚁⚂⚃⚄⚅'[a-1]} ${'⚀⚁⚂⚃⚄⚅'[b-1]}`; await sleep(90); }
@@ -348,8 +370,7 @@ async function land(p){
           addLog(`${p.name} comprou ${c.n} por ${R(c.p)}`); 
       }
     } else if(o!==me && !G.mort[i]){
-      let v = c.t==='c' ? 50000*G.roll : c.p*.1;
-      if (c.t==='p') { if (G.hotel[i]) v *= 10; else if (G.casas[i] > 0) v *= (1 + G.casas[i]); }
+      let v = c.t==='c' ? 50000*G.roll : aluguelProp(c, G.casas[i], G.hotel[i]);
       
       pay(p,v,o); 
       totalGasto[p.name]+=v; totalGanho[G.p[o].name]+=v;
@@ -405,10 +426,13 @@ function hipotecas(){
   };
   
   window.hip=i=>{ 
+      if (MODO === 'online') {
+        socket.emit('hipotecarPropriedade', { codigo: salaAtual, pos: i, hipotecar: !G.mort[i] });
+        setTimeout(() => { $('#mb').innerHTML = lista(); }, 300);
+        return;
+      }
       if(G.mort[i]){ if(G.p[me].money<T[i].p*.55) return alert('Sem dinheiro para resgatar'); G.p[me].money-=T[i].p*.55; G.mort[i]=false; addLog(`${G.p[me].name} resgatou ${T[i].n}`); }
       else{ G.mort[i]=true; G.p[me].money+=T[i].p/2; addLog(`${G.p[me].name} hipotecou ${T[i].n}`); } 
-      
-      if (MODO === 'online') socket.emit('hipotecarPropriedade', { codigo: salaAtual, pos: i, hipotecar: G.mort[i] });
       
       $('#mb').innerHTML=lista(); 
       ui(); 
@@ -419,35 +443,35 @@ function hipotecas(){
 function construir(){
   const me = G.cur;
   const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me && c.t==='p' && !G.mort[i]);
-  
   if(minhas.length === 0) return ask('Construir', 'Você não tem terrenos válidos.');
-  
+
   const lista = () => {
-    let html = '<p>Construir casa (R$ 50.000) ou Hotel (5ª casa):</p><div style="max-height:200px; overflow-y:auto;">';
+    let html = '<div style="max-height:240px; overflow-y:auto;">';
     minhas.forEach(i => {
-        const casas = G.casas[i];
-        const hotel = G.hotel[i];
-        html += `<div class="r" style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                  <span>${T[i].n} (${hotel?'Hotel':casas+' casas'})</span> 
-                  <button onclick="fazerConstrucao(${i})" style="padding:5px 10px; font-size:12px;">Construir</button>
-                 </div>`;
+      const custo = CUSTO_CASA[T[i].g];
+      const estado = G.hotel[i] ? '🏨 Hotel' : `${G.casas[i]}/4 casas`;
+      const btn = G.hotel[i] ? '<small>Máximo</small>'
+        : `<button onclick="fazerConstrucao(${i})" style="padding:5px 10px; font-size:12px;">${G.casas[i]===4?'Hotel':'Casa'} ${R(custo)}</button>`;
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                 <span>${T[i].n} (${estado})</span>${btn}</div>`;
     });
-    html += '</div>';
-    return html;
+    return html + '</div>';
   };
 
-  window.fazerConstrucao = (pos) => {
-      if(G.p[me].money >= 50000) {
-          G.p[me].money -= 50000;
-          totalGasto[G.p[me].name] += 50000;
-          if(G.casas[pos] < 4) G.casas[pos]++;
-          else if(G.casas[pos] === 4) { G.casas[pos] = 0; G.hotel[pos] = true; }
-          addLog(`${G.p[me].name} construiu em ${T[pos].n}`);
-          $('#mb').innerHTML = lista();
-          ui();
-      } else {
-          alert('Você não tem R$ 50.000 para construir.');
-      }
+  window.fazerConstrucao = pos => {
+    if (G.hotel[pos]) return;
+    const custo = CUSTO_CASA[T[pos].g];
+    if (G.p[me].money < custo) return alert(`Você não tem ${R(custo)}.`);
+
+    if (MODO === 'online') {
+      socket.emit('construir', { codigo: salaAtual, pos });
+      setTimeout(() => { $('#mb').innerHTML = lista(); }, 300);
+      return;
+    }
+    G.p[me].money -= custo; totalGasto[G.p[me].name] += custo;
+    if (G.casas[pos] < 4) G.casas[pos]++; else { G.casas[pos] = 0; G.hotel[pos] = true; }
+    addLog(`${G.p[me].name} construiu em ${T[pos].n}`);
+    $('#mb').innerHTML = lista(); ui();
   };
   ask('🏠 Construir', lista(), ['Fechar']);
 }
@@ -493,6 +517,11 @@ function negociar(){
     const recebo = (x >= 0 ? T[x].p : 0) + Math.max(-d, 0);
     const o = G.p[j];
 
+    if (MODO === 'online') {
+      socket.emit('proporNegociacao', { codigo: salaAtual, jogadorAlvoId: o.id, dar: m, receber: x, dinheiro: d });
+      return addLog(`🤝 Proposta enviada para ${o.name}.`);
+    }
+
     const ok = o.ai ? dou >= recebo * 1.1 : true; 
 
     if (!ok) return addLog(`🤝 ${o.name} recusou a proposta.`);
@@ -515,7 +544,7 @@ socket.on('atualizarJogo', (s) => {
   if (MODO !== 'online') return;
   if (s.estado === 'jogando') {
     $('#lobby').hidden = true; $('#jogo').hidden = false;
-    G.p = s.jogadores; G.own = s.donos; G.mort = s.mort; G.casas = s.casas; G.hotel = s.hotel; G.cur = s.vezDe;
+    G.p = s.jogadores; G.own = s.donos; G.mort = s.mort; G.casas = s.casas; G.hotel = s.hotel; G.cur = s.vezDe; G.busy = false;
     if (document.querySelectorAll('.cell').length === 0) montaTabuleiro();
     ui(); 
   } else {
@@ -533,6 +562,7 @@ socket.on('atualizarJogo', (s) => {
 socket.on('resultadoDados', (d) => {
   if (MODO !== 'online') return;
   
+  if (d.jogador === 'Sistema') { addLog(d.acaoMsg); return; }
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[d.a-1]} ${'⚀⚁⚂⚃⚄⚅'[d.b-1]}`;
   addLog(`🎲 ${d.jogador} tirou ${d.a}+${d.b} = ${d.total}`);
   if (d.acaoMsg) addLog(`➡️ ${d.acaoMsg}`);
@@ -563,21 +593,12 @@ socket.on('resultadoDados', (d) => {
               } 
               else if (d.acao === 'preso' && d.jogadorId === socket.id) {
                   ask('🚓 Camburão!', 'Você foi preso.', ['Pagar Fiança (200k)', 'Ficar Preso']).then(r => {
-                      socket.emit('pagarFianca', salaAtual);
+                      socket.emit(r === 0 ? 'pagarFianca' : 'avancarVez', salaAtual);
                   });
               } 
               else if (d.acao === 'carta' && d.jogadorId === socket.id) {
                   const [txt,tipo,v] = CARTAS[Math.random()*CARTAS.length|0];
-                  ask('🎴 FORTUNA?', txt).then(() => {
-                      if(tipo === 'm') { jogador.money += v; if(v>0) totalGanho[jogador.name] += v; else totalGasto[jogador.name] += Math.abs(v); addLog(`${jogador.name}: ${txt}`); }
-                      else if(tipo === 'all') { G.p.filter(x => x!==jogador && !x.out).forEach(o => { o.money -= v; totalGasto[o.name] += v; jogador.money += v; totalGanho[jogador.name] += v; }); addLog(`${jogador.name} recebeu de todos.`); }
-                      else if(tipo === 'each') { G.p.filter(x => x!==jogador && !x.out).forEach(o => { o.money += v; totalGanho[o.name] += v; jogador.money -= v; totalGasto[jogador.name] += v; }); addLog(`${jogador.name} pagou a todos.`); }
-                      else if(tipo === 'jail') { jogador.pos = 10; jogador.jail = 2; addLog(`${jogador.name} foi preso pela fiscalização.`); }
-                      else if(tipo === 'free') { jogador.free++; }
-                      else if(tipo === 'start') { jogador.pos = 0; jogador.money += 200000; }
-                      ui();
-                      setTimeout(() => socket.emit('acaoCarta', salaAtual), 1000);
-                  });
+                  ask('🎴 FORTUNA?', txt).then(() => socket.emit('acaoCarta', { codigo: salaAtual, tipo, v }));
               }
           }
       }, 200);
@@ -587,3 +608,12 @@ socket.on('resultadoDados', (d) => {
 function mudarCorLobby(c) { socket.emit('mudarCor', { codigo: salaAtual, novaCor: c }); }
 function sairDoJogo() { if (confirm('Sair?')) { if (MODO === 'online' && salaAtual) socket.emit('sairSala', salaAtual); location.reload(); } }
 function iniciarJogoOnline() { socket.emit('iniciarJogo', salaAtual); }
+
+socket.on('receberProposta', async p => {
+  const nome = i => i >= 0 ? T[i].n : 'nenhuma propriedade';
+  const din = p.dinheiro >= 0 ? `${p.de} te paga ${R(p.dinheiro)}` : `Você paga ${R(-p.dinheiro)}`;
+  const r = await ask('🤝 Proposta de ' + p.de,
+    `${p.de} te dá: <b>${nome(p.dar)}</b><br>${p.de} quer: <b>${nome(p.receber)}</b><br>${din}`,
+    ['Aceitar', 'Recusar']);
+  socket.emit('responderNegociacao', { codigo: p.codigo, aceitou: r === 0, deId: p.deId, dar: p.dar, receber: p.receber, dinheiro: p.dinheiro });
+});

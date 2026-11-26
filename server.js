@@ -18,6 +18,10 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.static(__dirname));
 
 const salas = {};
+const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
+                    laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
+// sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
+const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
 
 const T = [
  {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
@@ -70,7 +74,9 @@ io.on('connection', (socket) => {
         if (!sala || sala.estado !== 'jogando') return;
         const j = sala.jogadores[sala.vezDe];
         const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), total = a + b;
-        j.pos = (j.pos + total) % 40;
+        const posAnt = j.pos;
+        j.pos = (posAnt + total) % 40;
+        if (j.pos < posAnt) j.money += 200000; // passou pelo Início
         
         const casa = T[j.pos];
         let acao = null;
@@ -78,14 +84,10 @@ io.on('connection', (socket) => {
 
         if (casa.t === 'p' || casa.t === 'c') {
             const dono = sala.donos[j.pos];
-            if (dono === -1 || sala.mort[j.pos]) {
+            if (dono === -1) {
                 acao = 'comprar';
             } else if (dono !== sala.vezDe && !sala.mort[j.pos]) {
-                let aluguelBase = casa.t === 'c' ? 50000 * total : casa.p * 0.1;
-                if (casa.t === 'p') {
-                    if (sala.hotel[j.pos]) aluguelBase *= 10;
-                    else if (sala.casas[j.pos] > 0) aluguelBase *= (1 + sala.casas[j.pos]);
-                }
+                let aluguelBase = casa.t === 'c' ? 50000 * total : aluguelProp(casa, sala.casas[j.pos], sala.hotel[j.pos]);
                 j.money -= aluguelBase;
                 sala.jogadores[dono].money += aluguelBase;
                 acaoMsg = `Aluguel de R$ ${aluguelBase.toLocaleString('pt-BR')} pago a ${sala.jogadores[dono].name}`;
@@ -102,7 +104,6 @@ io.on('connection', (socket) => {
             acaoMsg = 'Recebeu R$ 150.000 de Restituição';
         } else if (casa.t === 'fe') {
             j.ferias = 2;
-            acao = 'ferias';
             acaoMsg = 'Tirou férias!';
         } else if (casa.t === 's') {
             acao = 'carta';
@@ -144,25 +145,30 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    socket.on('acaoCarta', (codigo) => {
-        const sala = salas[codigo];
-        if (sala) {
-            sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
-            io.to(codigo).emit('atualizarJogo', sala);
-        }
+    socket.on('acaoCarta', ({ codigo, tipo, v }) => {
+        const sala = salas[codigo]; if (!sala) return;
+        const j = sala.jogadores[sala.vezDe];
+        const outros = sala.jogadores.filter(x => x !== j && !x.out);
+        if (tipo === 'm') j.money += v;
+        else if (tipo === 'all') outros.forEach(o => { o.money -= v; j.money += v; });
+        else if (tipo === 'each') outros.forEach(o => { o.money += v; j.money -= v; });
+        else if (tipo === 'jail') { j.pos = 10; j.jail = 2; }
+        else if (tipo === 'free') j.free++;
+        else if (tipo === 'start') { j.pos = 0; j.money += 200000; }
+        else if (tipo === 'bankrupt') j.money = 0;
+        sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+        io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    socket.on('construir', async ({ codigo, pos }) => {
-        const sala = salas[codigo];
-        if (sala) {
-            const dono = sala.donos[pos];
-            if (dono !== -1 && sala.jogadores[dono].money >= 50000) {
-                sala.jogadores[dono].money -= 50000;
-                if (sala.casas[pos] < 4) sala.casas[pos]++;
-                else if (sala.casas[pos] === 4) { sala.casas[pos] = 0; sala.hotel[pos] = true; }
-            }
-            io.to(codigo).emit('atualizarJogo', sala);
-        }
+    socket.on('construir', ({ codigo, pos }) => {
+        const sala = salas[codigo]; if (!sala) return;
+        const dono = sala.donos[pos], jog = sala.jogadores[dono];
+        if (dono < 0 || !jog || jog.id !== socket.id || T[pos].t !== 'p' || sala.mort[pos] || sala.hotel[pos]) return;
+        const custo = CUSTO_CASA[T[pos].g];
+        if (jog.money < custo) return;
+        jog.money -= custo;
+        if (sala.casas[pos] < 4) sala.casas[pos]++; else { sala.casas[pos] = 0; sala.hotel[pos] = true; }
+        io.to(codigo).emit('atualizarJogo', sala);
     });
 
     socket.on('hipotecarPropriedade', ({ codigo, pos, hipotecar }) => {
@@ -207,7 +213,7 @@ io.on('connection', (socket) => {
         const sala = salas[codigo];
         if (!sala) return;
         const jogadorAtual = sala.jogadores[sala.vezDe];
-        io.to(jogadorAlvoId).emit('receberProposta', { de: jogadorAtual.name, dar, receber, dinheiro, codigo });
+        io.to(jogadorAlvoId).emit('receberProposta', { de: jogadorAtual.name, deId: socket.id, dar, receber, dinheiro, codigo });
     });
 
     socket.on('responderNegociacao', ({ codigo, aceitou, deId, dar, receber, dinheiro }) => {
@@ -219,8 +225,10 @@ io.on('connection', (socket) => {
         if (!alvo || !proponente) return;
 
         if (aceitou) {
-            if (dar >= 0) sala.donos[dar] = sala.jogadores.findIndex(j => j.id === deId);
-            if (receber >= 0) sala.donos[receber] = sala.jogadores.findIndex(j => j.id === socket.id);
+            const iProp = sala.jogadores.findIndex(j => j.id === deId);
+            const iAlvo = sala.jogadores.findIndex(j => j.id === socket.id);
+            if (dar >= 0) sala.donos[dar] = iAlvo;         // o que o proponente DÁ vai para o alvo
+            if (receber >= 0) sala.donos[receber] = iProp; // o que ele RECEBE vai para o proponente
             
             proponente.money -= dinheiro;
             alvo.money += dinheiro;
