@@ -578,12 +578,14 @@ socket.on('resultadoDados', (d) => {
                       else socket.emit('recusarCompra', salaAtual);
                   });
               } 
-              // NOTIFICAÇÃO DE PRESO
-              else if (d.acao === 'preso' && d.jogadorId === socket.id) {
-                  ask('🚓 Camburão!', 'Você foi preso.', ['Pagar Fiança (200k)', 'Ficar Preso']).then(r => {
-                      socket.emit('pagarFianca', salaAtual);
-                  });
-              } 
+              // NOTIFICAÇÃO DE COMPRA
+                if (d.acao === 'comprar' && d.jogadorId === socket.id) {
+                    const casa = T[d.posFinal];
+                    ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar']).then(r => {
+                        if (r === 0) socket.emit('comprarPropriedade', salaAtual);
+                        else socket.emit('recusarCompra', salaAtual);
+                    });
+                }
               // NOTIFICAÇÃO DE CARTA
               // NOTIFICAÇÃO DE CARTA (FORTUNA)
 else if (d.acao === 'carta' && d.jogadorId === socket.id) {

@@ -113,7 +113,7 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('resultadoDados', { 
             a, b, total, 
             jogador: j.name, 
-            jogadorId: j.id, 
+            jogadorId: j.id,
             posFinal: j.pos, 
             acao, 
             acaoMsg 
