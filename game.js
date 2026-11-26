@@ -180,6 +180,12 @@ function modo(m){
   montaLinhas();
 }
 
+function voltarInicio() {
+  $('#s1').hidden = false;
+  $('#s2').hidden = true;
+  MODO = 'ia';
+}
+
 function fecharModalOnline() { $('#modalOnline').hidden = true; $('#s1').hidden = false; MODO = 'ia'; }
 function mostrarOpcoes() { $('#telaOpcoesOnline').hidden = false; $('#telaEntrarSala').hidden = true; }
 function mostrarEntrarSala() { $('#telaOpcoesOnline').hidden = true; $('#telaEntrarSala').hidden = false; $('#inputCodigoSala').value = ''; $('#inputCodigoSala').focus(); }
@@ -190,8 +196,11 @@ function montaLinhas(){
   const n=+$('#qtd').value; let h='';
   for(let i=0;i<n;i++){
     const ia = MODO==='ia' && i>0;
-    const nome = MODO==='ia' ? (i===0?NOME:'Potiguar'+(83+i).toString().padStart(3,'0')) : (i===0?NOME:'Jogador '+(i+1));
-    h+=`<div class="lin"><input value="${nome}" ${ia?'disabled':''}><select>${CORES.map((c,j)=>`<option value="${c[1]}" ${j===i?'selected':''}>${c[0]}</option>`).join('')}</select></div>`;
+    const nomePadrao = MODO==='ia' ? (i===0?NOME:'Potiguar0'+(83+i)) : (i===0?NOME:'Jogador '+(i+1));
+    h+=`<div class="lin">
+          <input value="${nomePadrao}" ${ia?'disabled':''} style="flex:2; margin-bottom:0;">
+          <select style="flex:1; margin-bottom:0;">${CORES.map((c,j)=>`<option value="${c[1]}" ${j===i?'selected':''}>${c[0]}</option>`).join('')}</select>
+        </div>`;
   }
   $('#linhas').innerHTML=h;
 }
