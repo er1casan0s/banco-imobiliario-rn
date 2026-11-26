@@ -54,7 +54,6 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarCores', salas[codigo].jogadores);
     });
 
-    // Novidade: Avisa a todos quando a cor for alterada no seletor
     socket.on('mudarCor', ({ codigo, novaCor }) => {
         if (salas[codigo]) {
             const jogador = salas[codigo].jogadores.find(j => j.id === socket.id);
@@ -76,16 +75,54 @@ io.on('connection', (socket) => {
         const sala = salas[codigo];
         if (!sala || sala.estado !== 'jogando') return;
         const jogadorAtual = sala.jogadores[sala.vezDe];
-        const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), total = a + b;
         
+        const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), total = a + b;
         jogadorAtual.pos = (jogadorAtual.pos + total) % 40;
-        sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+        
+        // Verifica se caiu no Camburão (posição 30)
+        const caiuNoCamburao = jogadorAtual.pos === 30;
 
+        // Salva no Firebase se tiver configurado
         if (db) {
             try { await db.collection('salas').doc(codigo).set({ jogadores: sala.jogadores, vezDe: sala.vezDe, atualizadoEm: new Date() }, { merge: true }); } catch (e) {}
         }
 
-        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: jogadorAtual.name, posFinal: jogadorAtual.pos });
+        // Envia os dados. Se caiu no camburão, NÃO passa a vez ainda.
+        io.to(codigo).emit('resultadoDados', { 
+            a, b, total, 
+            jogador: jogadorAtual.name, 
+            jogadorId: jogadorAtual.id,
+            posFinal: jogadorAtual.pos,
+            caiuNoCamburao: caiuNoCamburao
+        });
+
+        if (!caiuNoCamburao) {
+            sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+            io.to(codigo).emit('atualizarJogo', sala);
+        }
+    });
+
+    // NOVO EVENTO: O jogador decidiu pagar a fiança no navegador
+    socket.on('pagarFianca', async (codigo) => {
+        const sala = salas[codigo];
+        if (!sala) return;
+        
+        const jogador = sala.jogadores[sala.vezDe];
+        
+        if (jogador.money >= 200000) {
+            jogador.money -= 200000;
+            jogador.pos = 10; // Move ele para a prisão
+            jogador.jail = 0; // Tira o status de preso
+        } else {
+            jogador.jail = 2; // Fica preso se não tiver dinheiro
+        }
+
+        if (db) {
+            try { await db.collection('salas').doc(codigo).set({ jogadores: sala.jogadores, atualizadoEm: new Date() }, { merge: true }); } catch (e) {}
+        }
+
+        // Agora que a decisão foi tomada, passa a vez
+        sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
@@ -112,5 +149,5 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`=================================\nSERVIDOR RODANDO: http://localhost:${PORT}\n=================================`));

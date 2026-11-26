@@ -610,7 +610,6 @@ socket.on('resultadoDados', (dados) => {
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[dados.a-1]} ${'⚀⚁⚂⚃⚄⚅'[dados.b-1]}`;
   log(`🎲 ${dados.jogador} tirou ${dados.a}+${dados.b} = ${dados.total}`);
   
-  // Animação de andar casa por casa
   const jogador = G.p.find(j => j.name === dados.jogador);
   if(jogador) {
       let posAtual = jogador.pos; 
@@ -628,6 +627,19 @@ socket.on('resultadoDados', (dados) => {
               clearInterval(animar);
               jogador.pos = posAtual; 
               ui();
+              
+              // Se o jogador da vez caiu no camburão
+              if (dados.caiuNoCamburao && dados.jogadorId === socket.id) {
+                  // Pergunta para o jogador
+                  ask('🚓 Camburão!', 'Pagar fiança de R$ 200.000 para sair agora?<br>(Se não, fica 1 rodada preso)', ['Pagar fiança', 'Ficar preso'])
+                  .then(escolha => {
+                      if (escolha === 0 && jogador.money >= 200000) {
+                          socket.emit('pagarFianca', salaAtual); // Avisa o servidor
+                      } else {
+                          socket.emit('pagarFianca', salaAtual); // Avisa o servidor mesmo se recusar (para passar a vez)
+                      }
+                  });
+              }
           }
       }, 200);
   }
