@@ -1,5 +1,6 @@
 const socket = io();
 let salaAtual = null;
+
 const $ = s => document.querySelector(s);
 const R = n => 'R$ ' + n.toLocaleString('pt-BR');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -23,8 +24,9 @@ const T = [
  {n:'Restituição',t:'re',p:150000}, P('Praia da Redinha',260000,'amarelo'), S
 ];
 
+const XY = i => i<=10 ? [10,10-i] : i<20 ? [20-i,0] : i<=30 ? [0,i-20] : [i-30,10];
+
 const CARTAS = [
- // ========== SORTE / GANHOS ==========
  ['Seu filho quebrou o braço. Pague R$ 20.000 ao Banco.','m',-20000],
  ['Você ganhou na loteria! Receba R$ 80.000.','m',80000],
  ['Você venceu no bolão! Todos os jogadores lhe pagam R$ 50.000.','all',50000],
@@ -46,8 +48,6 @@ const CARTAS = [
  ['Ganhou o concurso DoSol : ganhe R$10.000 de todos os jogadores','all',10000],
  ['Foi no Beco da Lama e perdeu a carteira : perdeu 50.000','m',50000],
  ['Recebeu herança de parentes dos outros jogadores','all',25000],
-
- // ========== NOVAS CARTAS DE SORTE ==========
  ['Ganhou o prêmio de melhor torcedor no estádio Arena das Dunas! Receba R$ 60.000.','m',60000],
  ['Sua banda de forró foi contratada para o Carnatal! Receba R$ 90.000.','m',90000],
  ['Vendeu cocadas na Praia de Ponta Negra e lucrou bem! Receba R$ 35.000.','m',35000],
@@ -92,8 +92,6 @@ const CARTAS = [
  ['Ganhou o campeonato de futebol de areia em Ponta Negra! Receba R$ 85.000.','m',85000],
  ['Seu restaurante de camarão em Galinhos faturou alto! Receba R$ 120.000.','m',120000],
  ['Ganhou uma viagem para Fernando de Noronha e revendeu! Receba R$ 100.000.','m',100000],
-
- // ========== NOVAS CARTAS DE AZAR ==========
  ['O carro quebrou na BR-101 e a oficina cobrou caro! Pague R$ 45.000.','m',-45000],
  ['Foi multado por excesso de velocidade na Av. Salgado Filho! Pague R$ 30.000.','m',-30000],
  ['Seu celular caiu no mar em Maracajaú! Pague R$ 25.000.','m',-25000],
@@ -137,8 +135,6 @@ const CARTAS = [
  ['Sua rede social foi hackeada e você perdeu seguidores (e dinheiro)! Pague R$ 18.000.','m',-18000],
  ['O gás acabou no meio do churrasco e você teve que comprar outro! Pague R$ 10.000.','m',-10000],
  ['Foi ao oftalmologista e precisou de óculos novos! Pague R$ 24.000.','m',-24000],
-
- // ========== CARTAS ESPECIAIS (all / each / free / jail / start) ==========
  ['Ganhou o concurso de melhor fantasia no Carnatal! Todos os jogadores lhe pagam R$ 30.000.','all',30000],
  ['Fez aniversário e ganhou presente de todos os jogadores! Receba R$ 25.000 de cada.','all',25000],
  ['Ganhou uma aposta contra todos os jogadores no jogo do América! Receba R$ 40.000 de cada.','all',40000],
@@ -368,6 +364,7 @@ function pay(p,v,to=null){ p.money-=v; if(to!==null) G.p[to].money+=v; }
 
 async function fim(pular){
   if(MODO === 'online') { socket.emit('avancarVez', salaAtual); return; }
+
   G.busy=true; const p=G.p[G.cur];
   if(p.money<0){ p.out=true; p.money=0; T.forEach((c,i)=>{ if(G.own[i]===G.cur){G.own[i]=-1;G.mort[i]=false;} }); }
   const vivos=G.p.filter(x=>!x.out);
