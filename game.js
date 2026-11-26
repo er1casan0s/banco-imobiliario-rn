@@ -440,11 +440,29 @@ async function preso(p){
   beep(600,.15,'sawtooth',.08); beep(900,.15,'sawtooth',.08,.18);
   log(`${p.name} foi levado de volta para a Prisão 🚓`);
   if(!p.ai) await ask('🚓 Camburão!','Você foi levado de volta para a Prisão.');
+  
   p.pos=10; ui();
+  
+  // Pergunta se quer pagar a fiança
   const paga = p.money>=200000 && (p.ai ? p.money>800000
-    : (await ask('Camburão! 🚓','Pagar fiança de R$ 200.000 para sair agora?<br>(Se não, fica 1 rodada sem jogar)',['Pagar fiança','Ficar preso']))===0);
-  if(paga){ pay(p,200000); log(`${p.name} pagou fiança de ${R(200000)}.`); }
-  else { p.jail=2; log(`${p.name} foi preso!`); }
+    : (await ask('Camburão! 🚓','Pagar fiança de R$ 200.000 para sair agora e continuar jogando?<br>(Se não, fica 1 rodada sem jogar)',['Pagar fiança e jogar','Ficar preso']))===0);
+  
+  if(paga){ 
+    pay(p,200000); 
+    log(`${p.name} pagou fiança de ${R(200000)} e vai jogar! 🎲`); 
+    
+    // --- AQUI ESTÁ A MÁGICA ---
+    // Libera o jogador para rolar os dados novamente nesta mesma rodada
+    p.jail = 0; 
+    G.rolled = false; 
+    G.busy = false;
+    ui(); // Atualiza os botões da tela para liberar o "Rolar Dados"
+    // ---------------------------
+    
+  } else { 
+    p.jail=2; 
+    log(`${p.name} foi preso e vai perder a vez!`); 
+  }
 }
 
 async function carta(p){
