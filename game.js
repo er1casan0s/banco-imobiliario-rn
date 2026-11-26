@@ -35,41 +35,20 @@ const T = [
 const XY = i => i<=10 ? [10,10-i] : i<20 ? [20-i,0] : i<=30 ? [0,i-20] : [i-30,10];
 
 const CARTAS = [
- ['Seu filho quebrou o braço. Pague R$ 20.000 ao Banco.','m',-20000],
- ['Você ganhou na loteria! Receba R$ 80.000.','m',80000],
- ['Você venceu no bolão! Todos os jogadores lhe pagam R$ 50.000.','all',50000],
- ['Seu carro foi para a oficina. Pague R$ 60.000.','m',-60000],
- ['IPTU atrasado! Pague R$ 100.000.','m',-100000],
- ['Vendeu artesanato em Genipabu! Receba R$ 40.000.','m',40000],
- ['Habeas Corpus! Guarde esta carta para sair da prisão.','free'],
- ['Festa de aniversário: pague R$ 20.000 a cada jogador.','each',20000],
- ['Fiscalização! Vá direto para a prisão.','jail'],
- ['Avance até o Início e receba seu salário.','start'],
- ['Ganhou o prêmio de melhor torcedor no estádio Arena das Dunas! Receba R$ 60.000.','m',60000],
- ['Sua banda de forró foi contratada para o Carnatal! Receba R$ 90.000.','m',90000],
- ['Vendeu cocadas na Praia de Ponta Negra e lucrou bem! Receba R$ 35.000.','m',35000],
- ['Achou um tesouro enterrado na Fortaleza dos Reis Magos! Receba R$ 150.000.','m',150000],
- ['Seu barco voltou cheio de pescado em Areia Branca! Receba R$ 70.000.','m',70000],
- ['A seca no Seridó matou sua plantação! Pague R$ 90.000.','m',-90000],
- ['Sua conta de luz da Cosern veio altíssima! Pague R$ 40.000.','m',-40000],
- ['O carro quebrou na BR-101 e a oficina cobrou caro! Pague R$ 45.000.','m',-45000],
- ['Foi multado por excesso de velocidade na Av. Salgado Filho! Pague R$ 30.000.','m',-30000],
- ['Ganhou o concurso de melhor fantasia no Carnatal! Todos os jogadores lhe pagam R$ 30.000.','all',30000],
- ['Fez uma festa junina e gastou demais! Pague R$ 30.000 a cada jogador.','each',30000]
+ ['Seu filho quebrou o braço. Pague R$ 20.000 ao Banco.','m',-20000], ['Você ganhou na loteria! Receba R$ 80.000.','m',80000],
+ ['Você venceu no bolão! Todos os jogadores lhe pagam R$ 50.000.','all',50000], ['Seu carro foi para a oficina. Pague R$ 60.000.','m',-60000],
+ ['IPTU atrasado! Pague R$ 100.000.','m',-100000], ['Vendeu artesanato em Genipabu! Receba R$ 40.000.','m',40000],
+ ['Habeas Corpus! Guarde esta carta para sair da prisão.','free'], ['Festa de aniversário: pague R$ 20.000 a cada jogador.','each',20000],
+ ['Fiscalização! Vá direto para a prisão.','jail'], ['Avance até o Início e receba seu salário.','start']
 ];
 
-let AC;
-let MODO = 'ia', NOME = '';
+let AC; let MODO = 'ia', NOME = '';
 let G = {p:[], own:[], mort:[], cur:0, roll:0, rolled:false, busy:false, duplas:0};
 
 function modo(m){
   NOME = $('#nome').value.trim() || 'Jogador';
   if(m === 'online'){
-    MODO = 'online';
-    $('#s1').hidden = true;
-    $('#modalOnline').hidden = false;
-    mostrarOpcoes();
-    return; 
+    MODO = 'online'; $('#s1').hidden = true; $('#modalOnline').hidden = false; mostrarOpcoes(); return; 
   }
   MODO=m; $('#s1').hidden=true; $('#s2').hidden=false;
   $('#qtd').innerHTML=[2,3,4,5,6,7,8].map(n=>`<option>${n}</option>`).join('');
@@ -82,14 +61,35 @@ function mostrarEntrarSala() { $('#telaOpcoesOnline').hidden = true; $('#telaEnt
 
 function mostrarCriarSala() {
   $('#modalOnline').hidden = true;
-  socket.emit('criarSala', { nome: NOME, cor: '#e53935' }); // Cor inicial padrão
+  socket.emit('criarSala', { nome: NOME, cor: '#e53935' });
 }
 
 function confirmarEntrarSala() {
   const codigo = $('#inputCodigoSala').value.trim().toUpperCase();
   if (codigo.length < 4) return alert('O código deve ter 4 letras.');
   $('#modalOnline').hidden = true;
-  socket.emit('entrarSala', { codigo: codigo, nome: NOME, cor: '#1e88e5' }); // Cor inicial padrão
+  socket.emit('entrarSala', { codigo: codigo, nome: NOME, cor: '#1e88e5' });
+}
+
+function montaLinhas(){
+  const n=+$('#qtd').value; let h='';
+  for(let i=0;i<n;i++){
+    const ia = MODO==='ia' && i>0;
+    const nome = MODO==='ia' ? (i===0?NOME:'Potiguar'+(83+i).toString().padStart(3,'0')) : (i===0?NOME:'Jogador '+(i+1));
+    h+=`<div class="lin"><input value="${nome}" ${ia?'disabled':''}>
+    <select>${CORES.map((c,j)=>`<option value="${c[1]}" ${j===i?'selected':''}>${c[0]}</option>`).join('')}</select></div>`;
+  }
+  $('#linhas').innerHTML=h;
+}
+
+function iniciar(){
+  AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+  const lin=[...document.querySelectorAll('.lin')];
+  const cores=lin.map(l=>l.querySelector('select').value);
+  if(new Set(cores).size<cores.length) return alert('Cada jogador precisa de uma cor diferente!');
+  G.p = lin.map((l,i)=>({name:l.querySelector('input').value||'J'+(i+1), cor:cores[i], money:2560000, pos:0, jail:0, free:0, ferias:0, ai:(MODO==='ia'&&i>0), out:false}));
+  G.own=Array(40).fill(-1); G.mort=Array(40).fill(false); G.cur=0; G.duplas=0;
+  $('#setup').hidden=true; $('#jogo').hidden=false; montaTabuleiro(); turno();
 }
 
 function montaTabuleiro(){
@@ -112,8 +112,7 @@ function montaTabuleiro(){
     const d=document.createElement('div'); d.className='cell'+(c.img?' img':'')+(c.t==='s'?' s':'');
     d.id='c'+i; const [r,k]=XY(i); d.style.gridRow=r+1; d.style.gridColumn=k+1;
     if(c.img) d.style.backgroundImage=`url(img/${c.img}.png)`;
-    d.innerHTML=(c.g?`<i class="band" style="background:${COR[c.g]}"></i>`:'')+`<b>${c.n}</b>`+
-      (c.p?`<small>${R(c.p)}</small>`:'')+`<em class="own"></em><div class="pw"></div>`;
+    d.innerHTML=(c.g?`<i class="band" style="background:${COR[c.g]}"></i>`:'')+`<b>${c.n}</b>`+(c.p?`<small>${R(c.p)}</small>`:'')+`<em class="own"></em><div class="pw"></div>`;
     $('#board').append(d);
   });
 }
@@ -142,35 +141,40 @@ function ui(){
 
   $('#bRoll').disabled = !(h && (!G.rolled || G.duplas>0));
   $('#bEnd').disabled = !(h && G.rolled && G.duplas===0);
-  $('#bMort').disabled = !h; 
-  $('#bTrade').disabled = !h;
+  $('#bMort').disabled = !h; $('#bTrade').disabled = !h;
 }
 
-const log = t => {
-  const p=G.p.find(x=>t.startsWith(x.name));
-  $('#log').insertAdjacentHTML('afterbegin',`<div class="lg" style="border-color:${p?p.cor:'#00e5ff'}">${t}</div>`); };
+const log = t => { const p=G.p.find(x=>t.startsWith(x.name)); $('#log').insertAdjacentHTML('afterbegin',`<div class="lg" style="border-color:${p?p.cor:'#00e5ff'}">${t}</div>`); };
 
 function ask(t,b,opts=['OK']){
   return new Promise(res=>{
     $('#mt').innerHTML=t; $('#mb').innerHTML=b; const bx=$('#mbtn'); bx.innerHTML='';
-    opts.forEach((o,i)=>{ const e=document.createElement('button'); e.textContent=o;
-      e.onclick=()=>{ $('#modal').hidden=true; res(i); }; bx.append(e); });
+    opts.forEach((o,i)=>{ const e=document.createElement('button'); e.textContent=o; e.onclick=()=>{ $('#modal').hidden=true; res(i); }; bx.append(e); });
     $('#modal').hidden=false;
   });
+}
+
+// Lógica para IA e Mesma Máquina
+async function turno(){
+  const p=G.p[G.cur]; G.rolled=false; G.busy=true; G.duplas=0;
+  ui();
+  if(p.ferias){ p.ferias--; log(`${p.name} está de férias.`); return fim(true); }
+  if(p.jail){
+    if(p.free>0 && (p.ai || (await ask('Você está preso','Usar Habeas Corpus?',['Usar','Não']))===0)){ p.free--; p.jail=0; log(`${p.name} saiu da prisão.`); }
+    else if(p.jail===2){ p.jail=1; return fim(true); }
+    else { pay(p,50000); p.jail=0; }
+  }
+  G.busy=false; ui();
+  if(p.ai){ await sleep(800); await rolar(); await sleep(700); fim(); }
 }
 
 async function rolar(){
   if(MODO === 'online') { socket.emit('rolarDados', salaAtual); return; }
   
   G.busy=true; G.rolled=true; ui();
-  let a,b; for(let i=0;i<8;i++){ a=1+Math.random()*6|0; b=1+Math.random()*6|0;
-    $('#dados').textContent=`${'⚀⚁⚂⚃⚄⚅'[a-1]} ${'⚀⚁⚂⚃⚄⚅'[b-1]}`; await sleep(90); }
+  let a,b; for(let i=0;i<8;i++){ a=1+Math.random()*6|0; b=1+Math.random()*6|0; $('#dados').textContent=`${'⚀⚁⚂⚃⚄⚅'[a-1]} ${'⚀⚁⚂⚃⚄⚅'[b-1]}`; await sleep(90); }
   G.roll=a+b; const p=G.p[G.cur]; log(`${p.name} tirou ${a}+${b} = ${G.roll}`);
-  for(let i=0;i<G.roll;i++){
-    p.pos=(p.pos+1)%40;
-    if(p.pos===0){ p.money+=200000; log(`${p.name} passou pelo Início: +${R(200000)}`); }
-    ui(); await sleep(160);
-  }
+  for(let i=0;i<G.roll;i++){ p.pos=(p.pos+1)%40; if(p.pos===0){ p.money+=200000; } ui(); await sleep(160); }
   await land(p); G.busy=false; ui();
 }
 
@@ -179,86 +183,67 @@ async function land(p){
   if(c.t==='p'||c.t==='c'){
     const o=G.own[i];
     if(o<0){
-      if(p.money<c.p) return log(`${p.name} não tem dinheiro para ${c.n}.`);
-      const compra = p.ai ? p.money-c.p>300000
-        : (await ask(c.n,`Preço: ${R(c.p)}<br>Seu saldo: ${R(p.money)}`,['Comprar','Não comprar']))===0;
-      if(compra){ p.money-=c.p; G.own[i]=me; log(`${p.name} comprou ${c.n}.`); }
+      if(p.money<c.p) return;
+      const compra = p.ai ? p.money-c.p>300000 : (await ask(c.n,`Preço: ${R(c.p)}`,['Comprar','Não']))===0;
+      if(compra){ p.money-=c.p; G.own[i]=me; }
     } else if(o!==me && !G.mort[i]){
-      const v = c.t==='c' ? 50000*G.roll : aluguel(i,o);
-      pay(p,v,o); log(`${p.name} pagou ${R(v)} a ${G.p[o].name} (${c.n}).`);
+      const v = c.t==='c' ? 50000*G.roll : aluguel(i,o); pay(p,v,o);
     }
-  } else if(c.t==='rf'){ pay(p,200000); log(`${p.name} pagou ${R(200000)} à Receita Federal.`);
-  } else if(c.t==='re'){ p.money+=150000; log(`${p.name} recebeu restituição: +${R(150000)}.`);
-  } else if(c.t==='ca'){ p.pos=10; p.jail=2; log(`${p.name} foi preso!`);
-  }
+  } else if(c.t==='rf'){ pay(p,200000);
+  } else if(c.t==='re'){ p.money+=150000;
+  } else if(c.t==='ca'){ p.pos=10; p.jail=2;
+  } else if(c.t==='s'){ await carta(p); }
+}
+
+async function carta(p){
+  const [txt,tipo,v]=CARTAS[Math.random()*CARTAS.length|0];
+  await ask('🎴 FORTUNA POTIGUAR',txt);
+  if(tipo === 'm'){ p.money += v; } else if(tipo === 'all'){ G.p.filter(x => x!==p && !x.out).forEach(o => { o.money -= v; p.money += v; }); }
+  else if(tipo === 'each'){ G.p.filter(x => x!==p && !x.out).forEach(o => { o.money += v; p.money -= v; }); }
+  else if(tipo === 'jail'){ p.pos=10; p.jail=2; }
 }
 
 function pay(p,v,to=null){ p.money-=v; if(to!==null) G.p[to].money+=v; }
+const aluguel=(i,o)=>{ const c=T[i]; return c.p*.1*(T.every((x,j)=>x.g!==c.g||G.own[j]===o)?2:1); };
 
 async function fim(pular){
+  if(MODO === 'online') { socket.emit('avancarVez', salaAtual); return; }
+
   G.busy=true; const p=G.p[G.cur];
-  if(p.money<0){ p.out=true; p.money=0; T.forEach((c,i)=>{ if(G.own[i]===G.cur){G.own[i]=-1;G.mort[i]=false;} }); log(`💥 ${p.name} faliu!`); }
+  if(p.money<0){ p.out=true; p.money=0; T.forEach((c,i)=>{ if(G.own[i]===G.cur){G.own[i]=-1;G.mort[i]=false;} }); }
   const vivos=G.p.filter(x=>!x.out);
   if(vivos.length===1){ ui(); await ask('🏆 FIM DE JOGO',`${vivos[0].name} venceu!`); return location.reload(); }
   do{ G.cur=(G.cur+1)%G.p.length; }while(G.p[G.cur].out);
   turno();
 }
 
-function turno(){
-  G.rolled=false; G.busy=false; ui();
-}
-
 // ==========================================
-// LÓGICA DE COMUNICAÇÃO COM O SERVIDOR (ONLINE)
+// LÓGICA DE COMUNICAÇÃO COM O SERVIDOR
 // ==========================================
 
-socket.on('salaCriada', (codigo) => {
-  salaAtual = codigo;
-  $('#setup').hidden = true;
-  $('#lobby').hidden = false;
-  $('#codigoSala').textContent = codigo;
-});
-
-socket.on('entrouSala', (codigo) => {
-  salaAtual = codigo; 
-  $('#setup').hidden = true;
-  $('#lobby').hidden = false;
-  $('#codigoSala').textContent = codigo; 
-});
+socket.on('salaCriada', (codigo) => { salaAtual = codigo; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = codigo; });
+socket.on('entrouSala', (codigo) => { salaAtual = codigo; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = codigo; });
 
 socket.on('atualizarJogo', (estadoServidor) => {
   if (MODO !== 'online') return;
 
   if (estadoServidor.estado === 'jogando') {
-    $('#lobby').hidden = true;
-    $('#jogo').hidden = false;
+    $('#lobby').hidden = true; $('#jogo').hidden = false;
     
-    G.p = estadoServidor.jogadores;
-    G.own = estadoServidor.donos;
-    G.mort = estadoServidor.mort;
-    G.cur = estadoServidor.vezDe;
+    G.p = estadoServidor.jogadores; G.own = estadoServidor.donos; G.mort = estadoServidor.mort; G.cur = estadoServidor.vezDe;
     
-    if (document.querySelectorAll('.cell').length === 0) {
-        montaTabuleiro(); 
-    }
+    if (document.querySelectorAll('.cell').length === 0) montaTabuleiro();
     ui(); 
   } else {
-    $('#lobby').hidden = false;
-    $('#setup').hidden = true;
-    $('#jogo').hidden = true;
-    $('#codigoSala').textContent = salaAtual || 'XXXX';
-
+    $('#lobby').hidden = false; $('#setup').hidden = true; $('#jogo').hidden = true;
     let html = '<p style="color:#7fdcff; margin-bottom:10px;">Jogadores conectados:</p>';
-    
     estadoServidor.jogadores.forEach((j, index) => {
-      const nomeJogador = j.name || j.nome || 'Jogador';
-      html += `<p style="color:${j.cor}; font-weight:bold;">🟢 ${nomeJogador} ${index === 0 ? '(Dono da Sala)' : ''}</p>`;
+      html += `<p style="color:${j.cor}; font-weight:bold;">🟢 ${j.name} ${index === 0 ? '(Dono)' : ''}</p>`;
     });
     
-    // Escolha de cor no Lobby
-    html += `<div style="margin-top:15px; padding:10px; background:#ffffff11; border-radius:8px;">`;
-    html += `<p style="color:#fff; font-size:14px; margin:0 0 5px 0;">Sua cor:</p>`;
-    html += `<select onchange="mudarCorLobby(this.value)" style="width:100%; padding:8px; border-radius:5px; border:none; font-weight:bold;">`;
+    html += `<div style="margin-top:15px; padding:10px; background:#ffffff11; border-radius:8px;">
+             <p style="color:#fff; font-size:14px; margin:0 0 5px 0;">Sua cor:</p>
+             <select onchange="mudarCorLobby(this.value)" style="width:100%; padding:8px; border-radius:5px; border:none; font-weight:bold;">`;
     CORES.forEach(c => {
         const jogador = estadoServidor.jogadores.find(j => j.id === socket.id);
         const selected = (jogador && jogador.cor === c[1]) ? 'selected' : '';
@@ -269,46 +254,30 @@ socket.on('atualizarJogo', (estadoServidor) => {
     if (estadoServidor.jogadores[0].id === socket.id && estadoServidor.jogadores.length >= 2) {
       html += `<button onclick="iniciarJogoOnline()" style="margin-top:15px; width:100%; background:#f2c500; color:#10244d; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">▶ Iniciar Partida</button>`;
     }
-
     $('#listaJogadoresLobby').innerHTML = html;
   }
 });
 
-// Escuta os dados do servidor
 socket.on('resultadoDados', (dados) => {
   if (MODO !== 'online') return;
-  
-  somDado();
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[dados.a-1]} ${'⚀⚁⚂⚃⚄⚅'[dados.b-1]}`;
   log(`🎲 ${dados.jogador} tirou ${dados.a}+${dados.b} = ${dados.total}`);
   
   const jogador = G.p.find(j => j.name === dados.jogador);
   if(jogador) {
-      let posAtual = jogador.pos; 
-      let posAntiga = (posAtual - dados.total + 40) % 40;
-      jogador.pos = posAntiga;
-      ui(); 
+      let posAtual = jogador.pos; let posAntiga = (posAtual - dados.total + 40) % 40;
+      jogador.pos = posAntiga; ui(); 
 
       let passos = 0;
       const animar = setInterval(() => {
-          jogador.pos = (jogador.pos + 1) % 40;
-          ui();
-          passos++;
+          jogador.pos = (jogador.pos + 1) % 40; ui(); passos++;
           if(passos >= dados.total) {
-              clearInterval(animar);
-              jogador.pos = posAtual; 
-              ui();
-              
-              // Se o servidor mandou comprar, abre a caixinha
+              clearInterval(animar); jogador.pos = posAtual; ui();
               if (dados.acao === 'comprar' && dados.jogadorId === socket.id) {
                   const casa = T[dados.posFinal];
-                  ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar'])
-                  .then(resposta => {
-                      if (resposta === 0) {
-                          socket.emit('comprarPropriedade', salaAtual);
-                      } else {
-                          socket.emit('recusarCompra', salaAtual);
-                      }
+                  ask(casa.n, `Preço: ${R(casa.p)}`, ['Comprar', 'Não']).then(resposta => {
+                      if (resposta === 0) socket.emit('comprarPropriedade', salaAtual);
+                      else socket.emit('recusarCompra', salaAtual);
                   });
               }
           }
@@ -316,17 +285,6 @@ socket.on('resultadoDados', (dados) => {
   }
 });
 
-function mudarCorLobby(novaCor) {
-    socket.emit('mudarCor', { codigo: salaAtual, novaCor });
-}
-
-function sairDoJogo() {
-  if (confirm('Tem certeza que deseja sair?')) {
-    if (MODO === 'online' && salaAtual) socket.emit('sairSala', salaAtual);
-    location.reload();
-  }
-}
-
-function iniciarJogoOnline() {
-  socket.emit('iniciarJogo', salaAtual);
-}
+function mudarCorLobby(novaCor) { socket.emit('mudarCor', { codigo: salaAtual, novaCor }); }
+function sairDoJogo() { if (confirm('Tem certeza que deseja sair?')) { if (MODO === 'online' && salaAtual) socket.emit('sairSala', salaAtual); location.reload(); } }
+function iniciarJogoOnline() { socket.emit('iniciarJogo', salaAtual); }
