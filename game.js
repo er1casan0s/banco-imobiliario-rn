@@ -26,7 +26,8 @@ const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
                     laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
 // sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
 const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
-
+// true se o jogador "idx" é dono de TODAS as propriedades da cor da casa "pos"
+const temGrupo = (idx, pos) => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || G.own[i]===idx);
 const COR = {rosa:'#d6409f',roxo:'#7b3fa0',laranja:'#f28c1e',amarelo:'#f2c500',vermelho:'#d62d2d',vclaro:'#7ccc5a',vescuro:'#2e8b3d',azul:'#3ba0d8',preto:'#222'};
 const CORES = [['Vermelho','#e53935'],['Roxo','#8e24aa'],['Rosa','#ec407a'],['Amarelo','#fdd835'],['Azul','#1e88e5'],['Verde','#43a047'],['Laranja','#fb8c00'],['Marrom','#6d4c41']];
 
@@ -444,9 +445,8 @@ function hipotecas(){
 
 function construir(){
   const me = G.cur;
-  const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me && c.t==='p' && !G.mort[i]);
-  if(minhas.length === 0) return ask('Construir', 'Você não tem terrenos válidos.');
-
+ const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me && c.t==='p' && !G.mort[i] && temGrupo(me,i));
+if(minhas.length === 0) return ask('Construir', 'Você só pode construir quando tiver <b>todas</b> as propriedades da mesma cor (par ou trio).');
   const lista = () => {
     let html = '<div style="max-height:240px; overflow-y:auto;">';
     minhas.forEach(i => {
@@ -461,6 +461,7 @@ function construir(){
   };
 
   window.fazerConstrucao = pos => {
+        if (!temGrupo(me, pos)) return;
     if (G.hotel[pos]) return;
     const custo = CUSTO_CASA[T[pos].g];
     if (G.p[me].money < custo) return alert(`Você não tem ${R(custo)}.`);

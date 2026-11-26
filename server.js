@@ -22,7 +22,7 @@ const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
                     laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
 // sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
 const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
-
+const temGrupo = (sala, idx, pos) => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || sala.donos[i]===idx);
 const T = [
  {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
  {n:'Maracajaú',t:'p',p:60000,g:'vescuro'}, {n:'FORTUNA?',t:'s'}, {n:'Roberto Freire',t:'p',p:220000,g:'vermelho'},
@@ -163,7 +163,7 @@ io.on('connection', (socket) => {
     socket.on('construir', ({ codigo, pos }) => {
         const sala = salas[codigo]; if (!sala) return;
         const dono = sala.donos[pos], jog = sala.jogadores[dono];
-        if (dono < 0 || !jog || jog.id !== socket.id || T[pos].t !== 'p' || sala.mort[pos] || sala.hotel[pos]) return;
+        if (dono < 0 || !jog || jog.id !== socket.id || T[pos].t !== 'p' || sala.mort[pos] || sala.hotel[pos] || !temGrupo(sala, dono, pos)) return;
         const custo = CUSTO_CASA[T[pos].g];
         if (jog.money < custo) return;
         jog.money -= custo;
