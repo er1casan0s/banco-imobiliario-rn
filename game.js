@@ -549,12 +549,14 @@ socket.on('atualizarJogo', (s) => {
 socket.on('resultadoDados', (d) => {
   if (MODO !== 'online') return;
   
+  // Atualiza os dados na tela
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[d.a-1]} ${'⚀⚁⚂⚃⚄⚅'[d.b-1]}`;
   addLog(`🎲 ${d.jogador} tirou ${d.a}+${d.b} = ${d.total}`);
   if (d.acaoMsg) addLog(`➡️ ${d.acaoMsg}`);
   
   const jogador = G.p.find(j => j.name === d.jogador);
   if(jogador) {
+      // Define a posição antiga para começar a animação
       let posAntiga = (jogador.pos - d.total + 40) % 40; 
       jogador.pos = posAntiga; 
       ui(); 
@@ -565,12 +567,13 @@ socket.on('resultadoDados', (d) => {
           ui(); 
           passos++;
           
+          // Quando terminar de andar
           if(passos >= d.total) {
               clearInterval(animar); 
               jogador.pos = d.posFinal; 
               ui();
               
-              // NOTIFICAÇÃO DE COMPRA
+              // 1. NOTIFICAÇÃO DE COMPRA
               if (d.acao === 'comprar' && d.jogadorId === socket.id) {
                   const casa = T[d.posFinal];
                   ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar']).then(r => {
@@ -578,53 +581,53 @@ socket.on('resultadoDados', (d) => {
                       else socket.emit('recusarCompra', salaAtual);
                   });
               } 
-              // NOTIFICAÇÃO DE COMPRA
-                if (d.acao === 'comprar' && d.jogadorId === socket.id) {
-                    const casa = T[d.posFinal];
-                    ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar']).then(r => {
-                        if (r === 0) socket.emit('comprarPropriedade', salaAtual);
-                        else socket.emit('recusarCompra', salaAtual);
-                    });
-                }
-              // NOTIFICAÇÃO DE CARTA
-              // NOTIFICAÇÃO DE CARTA (FORTUNA)
-else if (d.acao === 'carta' && d.jogadorId === socket.id) {
-    // Sorteia uma carta e mostra
-    const [txt,tipo,v]=CARTAS[Math.random()*CARTAS.length|0];
-    ask('🎴 FORTUNA?',txt).then(() => {
-        // Aplica o efeito da carta localmente
-        if(tipo === 'm'){ 
-            jogador.money += v; 
-            if(v>0) totalGanho[jogador.name]+=v; 
-            else totalGasto[jogador.name]+=Math.abs(v); 
-            addLog(`${jogador.name}: ${txt}`);
-        }
-        else if(tipo === 'all'){ 
-            G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
-                o.money -= v; totalGasto[o.name]+=v; 
-                jogador.money += v; totalGanho[jogador.name]+=v; 
-            }); 
-            addLog(`${jogador.name} recebeu de todos.`);
-        }
-        else if(tipo === 'each'){ 
-            G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
-                o.money += v; totalGanho[o.name]+=v; 
-                jogador.money -= v; totalGasto[jogador.name]+=v; 
-            }); 
-            addLog(`${jogador.name} pagou a todos.`);
-        }
-        else if(tipo === 'jail'){ 
-            jogador.pos=10; jogador.jail=2; 
-            addLog(`${jogador.name} foi preso pela fiscalização.`);
-        }
-        else if(tipo === 'free'){ jogador.free++; }
-        else if(tipo === 'start'){ jogador.pos=0; jogador.money+=200000; }
-        
-        ui();
-        // Avisa o servidor que a carta foi resolvida (passa a vez)
-        setTimeout(() => socket.emit('acaoCarta', salaAtual), 1000);
-    });
-}
+              // 2. NOTIFICAÇÃO DE PRESO (CAMBURÃO)
+              else if (d.acao === 'preso' && d.jogadorId === socket.id) {
+                  ask('🚓 Camburão!', 'Você foi preso.', ['Pagar Fiança (200k)', 'Ficar Preso']).then(r => {
+                      socket.emit('pagarFianca', salaAtual);
+                  });
+              } 
+              // 3. NOTIFICAÇÃO DE CARTA (FORTUNA?)
+              else if (d.acao === 'carta' && d.jogadorId === socket.id) {
+                  // Sorteia a carta
+                  const [txt,tipo,v] = CARTAS[Math.random()*CARTAS.length|0];
+                  
+                  // Mostra a carta
+                  ask('🎴 FORTUNA?', txt).then(() => {
+                      // Aplica os efeitos
+                      if(tipo === 'm') { 
+                          jogador.money += v; 
+                          if(v>0) totalGanho[jogador.name] += v; 
+                          else totalGasto[jogador.name] += Math.abs(v); 
+                          addLog(`${jogador.name}: ${txt}`);
+                      }
+                      else if(tipo === 'all') { 
+                          G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
+                              o.money -= v; totalGasto[o.name] += v; 
+                              jogador.money += v; totalGanho[jogador.name] += v; 
+                          }); 
+                          addLog(`${jogador.name} recebeu de todos.`);
+                      }
+                      else if(tipo === 'each') { 
+                          G.p.filter(x => x!==jogador && !x.out).forEach(o => { 
+                              o.money += v; totalGanho[o.name] += v; 
+                              jogador.money -= v; totalGasto[jogador.name] += v; 
+                          }); 
+                          addLog(`${jogador.name} pagou a todos.`);
+                      }
+                      else if(tipo === 'jail') { 
+                          jogador.pos = 10; 
+                          jogador.jail = 2; 
+                          addLog(`${jogador.name} foi preso pela fiscalização.`);
+                      }
+                      else if(tipo === 'free') { jogador.free++; }
+                      else if(tipo === 'start') { jogador.pos = 0; jogador.money += 200000; }
+                      
+                      ui();
+                      // Avisa o servidor que a carta foi resolvida e passa a vez
+                      setTimeout(() => socket.emit('acaoCarta', salaAtual), 1000);
+                  });
+              }
           }
       }, 200);
   }

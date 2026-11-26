@@ -154,10 +154,12 @@ io.on('connection', (socket) => {
         io.to(codigo).emit('atualizarJogo', sala);
     });
 
-    socket.on('acaoCarta', (codigo) => {
+       socket.on('acaoCarta', (codigo) => {
         const sala = salas[codigo];
-        sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
-        io.to(codigo).emit('atualizarJogo', sala);
+        if (sala) {
+            sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+            io.to(codigo).emit('atualizarJogo', sala);
+        }
     });
 
     socket.on('construir', async ({ codigo, pos }) => {
