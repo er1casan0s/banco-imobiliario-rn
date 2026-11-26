@@ -381,28 +381,47 @@ async function fim(pular){
 
 function hipotecas(){
   const me=G.cur;
-  const lista=()=>{ const h=T.map((c,i)=>i).filter(i=>G.own[i]===me).map(i=>
-    `<div class="r"><span>${T[i].n}</span><button onclick="hip(${i})">${G.mort[i]?'Resgatar '+R(T[i].p*.55):'Hipotecar +'+R(T[i].p/2)}</button></div>`).join('');
-    return `${h||'Nenhuma propriedade.'}`; };
+  const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me);
+  
+  if(minhas.length === 0) return ask('Hipotecar', 'Você não tem propriedades.');
+
+  const lista=()=>{ 
+    const h = minhas.map(i=>
+      `<div class="r" style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span>${T[i].n}</span>
+        <button onclick="hip(${i})" style="padding:5px 10px; font-size:12px;">${G.mort[i]?'Resgatar '+R(T[i].p*.55):'Hipotecar +'+R(T[i].p/2)}</button>
+      </div>`).join('');
+    return `<div style="max-height:200px; overflow-y:auto;">${h}</div>`; 
+  };
+  
   window.hip=i=>{ 
-      if(G.mort[i]){ if(G.p[me].money<T[i].p*.55) return; G.p[me].money-=T[i].p*.55; G.mort[i]=false; }
-      else{ G.mort[i]=true; G.p[me].money+=T[i].p/2; } 
+      if(G.mort[i]){ if(G.p[me].money<T[i].p*.55) return alert('Sem dinheiro para resgatar'); G.p[me].money-=T[i].p*.55; G.mort[i]=false; addLog(`${G.p[me].name} resgatou ${T[i].n}`); }
+      else{ G.mort[i]=true; G.p[me].money+=T[i].p/2; addLog(`${G.p[me].name} hipotecou ${T[i].n}`); } 
       $('#mb').innerHTML=lista(); ui(); 
   };
-  ask('Hipotecas',lista(),['Fechar']);
+  ask('🏦 Hipotecas',lista(),['Fechar']);
 }
 
 function construir(){
   const me = G.cur;
   const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me && c.t==='p' && !G.mort[i]);
+  
   if(minhas.length === 0) return ask('Construir', 'Você não tem terrenos válidos.');
   
-  let html = '<p>Construir casa (R$ 50.000) ou Hotel (5ª casa):</p>';
-  minhas.forEach(i => {
-      const casas = G.casas[i];
-      const hotel = G.hotel[i];
-      html += `<div class="r"><span>${T[i].n} (${hotel?'Hotel':casas+' casas'})</span> <button onclick="fazerConstrucao(${i})">Construir</button></div>`;
-  });
+  const lista = () => {
+    let html = '<p>Construir casa (R$ 50.000) ou Hotel (5ª casa):</p><div style="max-height:200px; overflow-y:auto;">';
+    minhas.forEach(i => {
+        const casas = G.casas[i];
+        const hotel = G.hotel[i];
+        html += `<div class="r" style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span>${T[i].n} (${hotel?'Hotel':casas+' casas'})</span> 
+                  <button onclick="fazerConstrucao(${i})" style="padding:5px 10px; font-size:12px;">Construir</button>
+                 </div>`;
+    });
+    html += '</div>';
+    return html;
+  };
+
   window.fazerConstrucao = (pos) => {
       if(G.p[me].money >= 50000) {
           G.p[me].money -= 50000;
@@ -410,14 +429,23 @@ function construir(){
           if(G.casas[pos] < 4) G.casas[pos]++;
           else if(G.casas[pos] === 4) { G.casas[pos] = 0; G.hotel[pos] = true; }
           addLog(`${G.p[me].name} construiu em ${T[pos].n}`);
-          $('#mb').innerHTML = '';
-          construir(); // Atualiza a lista
+          $('#mb').innerHTML = lista();
+          ui();
+      } else {
+          alert('Você não tem R$ 50.000 para construir.');
       }
   };
-  ask('Construir', html, ['Fechar']);
+  ask('🏠 Construir', lista(), ['Fechar']);
 }
 
-function negociar(){ ask('Negociar', 'Em breve...', ['OK']); }
+function negociar(){ 
+  const me = G.cur;
+  const outros = G.p.filter((p, i) => i !== me && !p.out);
+  
+  if(outros.length === 0) return ask('Negociar', 'Não há outros jogadores para negociar.');
+  
+  ask('🤝 Negociar', 'Função de negociação em desenvolvimento!', ['OK']); 
+}
 
 socket.on('salaCriada', (c) => { salaAtual = c; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = c; });
 socket.on('entrouSala', (c) => { salaAtual = c; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = c; });

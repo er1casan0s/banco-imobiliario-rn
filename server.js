@@ -110,7 +110,21 @@ io.on('connection', (socket) => {
 
         if (db) { try { await db.collection('salas').doc(codigo).set({ jogadores: sala.jogadores, vezDe: sala.vezDe, atualizadoEm: new Date() }, { merge: true }); } catch (e) {} }
 
-        io.to(codigo).emit('resultadoDados', { a, b, total, jogador: j.name, jogadorId: j.id, posFinal: j.pos, acao, acaoMsg });
+                io.to(codigo).emit('resultadoDados', { 
+            a, b, total, 
+            jogador: j.name, 
+            jogadorId: j.id, 
+            posFinal: j.pos, 
+            acao, 
+            acaoMsg 
+        });
+
+        // Se NÃO precisar comprar e NÃO caiu no camburão, passa a vez.
+        // (Se for comprar, a vez só passa quando ele clicar em Comprar ou Recusar)
+        if (!acao && casa.t !== 'ca') {
+            sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+            io.to(codigo).emit('atualizarJogo', sala);
+        }
 
         if (!acao && casa.t !== 'ca') {
             sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;

@@ -67,3 +67,33 @@ aside h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:1px;mar
 #mb{font-size:16px;margin-bottom:8px;max-height:50vh;overflow:auto}
 #mb select,#mb input{border:1px solid #888;width:100%;margin:3px 0}
 @keyframes vira{from{transform:rotateY(90deg) scale(.6)}to{transform:none}}
+
+
+
+/* Design dos botões de ação no centro */
+#botoes button {
+  background: linear-gradient(135deg, #f2c500, #d6a000);
+  color: #10244d;
+  border: 2px solid #fff;
+  border-radius: 12px;
+  font-weight: 800;
+  padding: 12px 20px;
+  margin: 5px;
+  font-size: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+}
+
+#botoes button:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(242, 197, 0, 0.4);
+  background: linear-gradient(135deg, #ffdf4d, #f2c500);
+}
+
+#botoes button:disabled {
+  background: #4a5568;
+  color: #a0aec0;
+  border-color: #2d3748;
+  box-shadow: none;
+  opacity: 0.7;
+}
