@@ -1,3 +1,5 @@
+window.tocar = window.tocar || function () {};
+
 const socket = io();
 let salaAtual = null;
 
@@ -648,7 +650,7 @@ async function fim(pular){
       // IA decide sozinha (não abre modal); humano vê o ask()
       let r;
       if(p.ai){
-        r = iaDecideVender(P,minhasProps, valorVenda); // IA sempre aceita vender para continuar
+        r = iaDecideVender(p,minhasProps, valorVenda); // IA sempre aceita vender para continuar
       } else {
         r = await ask('🏚️ Vender propriedades?',
           `Seu saldo está negativo (${R(p.money)}).<br>` +
