@@ -980,3 +980,4 @@ socket.on('erro', m => { alert(m); location.reload(); });
   if (r === 0) { MODO = 'online'; NOME = ses.nome; salaAtual = ses.codigo; socket.emit('reconectar', { codigo: ses.codigo, pid: PID }); }
   else { socket.emit('sairSala', { codigo: ses.codigo, pid: PID }); limparSessao(); }
 })();
+
