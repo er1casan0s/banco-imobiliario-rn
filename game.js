@@ -1,6 +1,17 @@
 const socket = io();
 let salaAtual = null;
 
+const PID = (() => {
+  try {
+    let p = localStorage.getItem('pid');
+    if (!p) { p = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('pid', p); }
+    return p;
+  } catch (e) { return Math.random().toString(36).slice(2); }
+})();
+const salvarSessao = () => { try { localStorage.setItem('sessao', JSON.stringify({ codigo: salaAtual, nome: NOME })); } catch (e) {} };
+const limparSessao = () => { try { localStorage.removeItem('sessao'); } catch (e) {} };
+
+
 const $ = s => document.querySelector(s);
 const R = n => 'R$ ' + n.toLocaleString('pt-BR');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -219,8 +230,8 @@ function voltarInicio() {
 function fecharModalOnline() { $('#modalOnline').hidden = true; $('#s1').hidden = false; MODO = 'ia'; }
 function mostrarOpcoes() { $('#telaOpcoesOnline').hidden = false; $('#telaEntrarSala').hidden = true; }
 function mostrarEntrarSala() { $('#telaOpcoesOnline').hidden = true; $('#telaEntrarSala').hidden = false; $('#inputCodigoSala').value = ''; $('#inputCodigoSala').focus(); }
-function mostrarCriarSala() { $('#modalOnline').hidden = true; socket.emit('criarSala', { nome: NOME, cor: '#e53935' }); }
-function confirmarEntrarSala() { const c = $('#inputCodigoSala').value.trim().toUpperCase(); if(c.length<4) return alert('Código inválido'); $('#modalOnline').hidden = true; socket.emit('entrarSala', { codigo: c, nome: NOME, cor: '#1e88e5' }); }
+function mostrarCriarSala() { $('#modalOnline').hidden = true; socket.emit('criarSala', { nome: NOME, cor: '#e53935', pid: PID }); }
+function confirmarEntrarSala() { const c = $('#inputCodigoSala').value.trim().toUpperCase(); if(c.length<4) return alert('Código inválido'); $('#modalOnline').hidden = true; socket.emit('entrarSala', { codigo: c, nome: NOME, cor: '#1e88e5', pid: PID }); }
 
 function montaLinhas(){
   const n=+$('#qtd').value; let h='';
@@ -303,7 +314,7 @@ function ui(){
         <span class="pos">${['🥇','🥈','🥉'][k]||k+1}</span>
         <i class="dot" style="background:${o.p.cor}"></i>
         <div class="inf">
-            <b>${o.p.name}${o.p.free?' 🔑':''}${o.p.jail?' 🔒':''}${o.p.ferias?' 🏖️':''}${o.i===G.cur?' ◄':''}</b>
+            <b>${o.p.name}${o.p.free?' 🔑':''}${o.p.jail?' 🔒':''}${o.p.ferias?' 🏖️':''}${o.p.offline?' 🔌':''}${o.i===G.cur?' ◄':''}</b>
             <small style="color:#ff8888">Perdas: ${R(perdasDe(o.p))}</small>
             <small style="color:#7ccc5a">Ganhos: ${R(ganhosDe(o.p))}</small>
         </div>
@@ -549,6 +560,7 @@ socket.on('entrouSala', (c) => { salaAtual = c; $('#setup').hidden = true; $('#l
 socket.on('atualizarJogo', (s) => {
   if (MODO !== 'online') return;
   if (s.estado === 'jogando') {
+      salvarSessao();
     $('#lobby').hidden = true; $('#jogo').hidden = false;
     G.p = s.jogadores; G.own = s.donos; G.mort = s.mort; G.casas = s.casas; G.hotel = s.hotel; G.cur = s.vezDe; G.busy = false;
     if (document.querySelectorAll('.cell').length === 0) montaTabuleiro();
@@ -612,7 +624,13 @@ socket.on('resultadoDados', (d) => {
 });
 
 function mudarCorLobby(c) { socket.emit('mudarCor', { codigo: salaAtual, novaCor: c }); }
-function sairDoJogo() { if (confirm('Sair?')) { if (MODO === 'online' && salaAtual) socket.emit('sairSala', salaAtual); location.reload(); } }
+function sairDoJogo() {
+  if (confirm('Sair?')) {
+    if (MODO === 'online' && salaAtual) socket.emit('sairSala', { codigo: salaAtual, pid: PID });
+    limparSessao();
+    setTimeout(() => location.reload(), 300);
+  }
+}
 function iniciarJogoOnline() { socket.emit('iniciarJogo', salaAtual); }
 
 socket.on('receberProposta', async p => {
@@ -623,3 +641,22 @@ socket.on('receberProposta', async p => {
     ['Aceitar', 'Recusar']);
   socket.emit('responderNegociacao', { codigo: p.codigo, aceitou: r === 0, deId: p.deId, dar: p.dar, receber: p.receber, dinheiro: p.dinheiro });
 });
+
+// ===== RECONEXÃO =====
+// bloqueou a tela / caiu a internet: volta sozinho, sem perguntar
+socket.on('connect', () => {
+  if (MODO === 'online' && salaAtual) socket.emit('reconectar', { codigo: salaAtual, pid: PID });
+});
+socket.on('reconectado', cod => { salaAtual = cod; MODO = 'online'; $('#setup').hidden = true; $('#modalOnline').hidden = true; });
+socket.on('reconexaoFalhou', () => { limparSessao(); alert('Não foi possível voltar para essa partida (ela acabou ou o servidor reiniciou).'); location.reload(); });
+socket.on('erro', m => { alert(m); location.reload(); });
+
+// atualizou a página: pergunta se quer voltar
+(async () => {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem('sessao') || 'null'); } catch (e) {}
+  if (!s || !s.codigo) return;
+  const r = await ask('🔄 Voltar para a partida?', `Você estava na sala <b>${s.codigo}</b> como <b>${s.nome}</b>.`, ['Voltar', 'Não']);
+  if (r === 0) { MODO = 'online'; NOME = s.nome; salaAtual = s.codigo; socket.emit('reconectar', { codigo: s.codigo, pid: PID }); }
+  else { socket.emit('sairSala', { codigo: s.codigo, pid: PID }); limparSessao(); }
+})();
