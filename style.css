@@ -43,11 +43,76 @@ aside h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:1px;mar
 .pawn{width:2cqw;height:2.8cqw;border-radius:50% 50% 25% 25%/40% 40% 20% 20%;position:relative;margin:0 .1cqw;border:1px solid #000}
 .pawn::before{content:"";position:absolute;top:-1.1cqw;left:.3cqw;width:1.4cqw;height:1.4cqw;border-radius:50%;background:inherit;border:1px solid #000}
 
-/* Centro */
+/* Centro 
 .centro{grid-area:2/2/11/11;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .centro h2{font-size:4cqw;margin:0;background:#0f4aa8;padding:1cqw 2cqw;border:.4cqw solid #8cc8ff;border-radius:8px}
 #dados{font-size:7cqw;margin:1cqw}
-#botoes{display:flex;flex-wrap:wrap;justify-content:center}
+#botoes{display:flex;flex-wrap:wrap;justify-content:center}*/
+
+/* ===== CENTRO DO TABULEIRO ===== */
+.centro{grid-area:2/2/11/11;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqw;text-align:center;
+  background:
+    radial-gradient(circle at 50% 35%,#1d6fc466,transparent 55%),
+    radial-gradient(circle at 50% 100%,#f2c50026,transparent 50%);}
+
+/* luz neon girando no fundo */
+.centro::before{content:"";position:absolute;inset:-50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 70%,#00e5ff22 85%,transparent 100%);
+  animation:giraLuz 10s linear infinite}
+@keyframes giraLuz{to{transform:rotate(360deg)}}
+
+/* logo */
+.logo{position:relative;z-index:1}
+.centro h2{margin:0;font-size:4cqw;line-height:1.15;color:#fff;letter-spacing:.2cqw;
+  padding:1.4cqw 3.5cqw;border-radius:1.6cqw;
+  background:linear-gradient(135deg,#06163d,#0f4aa8);
+  border:.35cqw solid #00e5ff;
+  box-shadow:0 0 2.5cqw #00e5ff99,inset 0 0 2cqw #00e5ff33;
+  text-shadow:0 0 1cqw #00e5ff;animation:neon 3s ease-in-out infinite}
+.centro h2 span{color:#f2c500;text-shadow:0 0 1.2cqw #f2c500}
+@keyframes neon{50%{box-shadow:0 0 4cqw #00e5ffcc,inset 0 0 2.5cqw #00e5ff55}}
+.sub{margin:1cqw 0 0;font-size:1.25cqw;letter-spacing:.4cqw;color:#7fdcff;text-transform:uppercase}
+
+/* dados */
+#dados{position:relative;z-index:1;margin:0;font-size:8cqw;line-height:1;color:#fff;
+  padding:.6cqw 3cqw;border-radius:2cqw;
+  background:#ffffff12;border:.25cqw solid #ffffff40;
+  box-shadow:0 0 3cqw #00e5ff55;text-shadow:0 0 1.5cqw #00e5ff}
+#dados.rolando{animation:chacoalha .15s linear infinite}
+@keyframes chacoalha{
+  0%{transform:rotate(-10deg) scale(1.08)}
+  50%{transform:rotate(10deg) scale(1.15)}
+  100%{transform:rotate(-10deg) scale(1.08)}}
+
+/* botões */
+#botoes{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:1.2cqw;width:64%}
+#botoes button{margin:0;width:100%;min-height:0;
+  padding:1.4cqw 1cqw;border-radius:1.3cqw;
+  font-family:Orbitron,'Segoe UI',sans-serif;font-weight:800;font-size:clamp(11px,1.6cqw,17px);
+  color:#fff;border:.2cqw solid #ffffff55;
+  background:var(--cor);
+  box-shadow:0 .5cqw 0 #00000066,0 0 1.6cqw var(--brilho);
+  text-shadow:0 1px 2px #0008;transition:transform .15s,box-shadow .15s,filter .15s}
+#botoes button:hover:not(:disabled){transform:translateY(-.35cqw);filter:brightness(1.15);
+  box-shadow:0 .8cqw 0 #00000066,0 0 2.8cqw var(--brilho)}
+#botoes button:active:not(:disabled){transform:translateY(.3cqw);box-shadow:0 .15cqw 0 #00000066}
+
+/* cada botão com sua cor */
+#botoes #bRoll {grid-column:1/-1;font-size:clamp(14px,2.4cqw,24px);padding:1.8cqw;color:#10244d;text-shadow:none;
+  --cor:linear-gradient(135deg,#ffe36b,#f2a900);--brilho:#f2c500cc;animation:pulsa 1.6s ease-in-out infinite}
+#botoes #bMort {--cor:linear-gradient(135deg,#0b8fe6,#0a3d8f);--brilho:#00e5ff66}
+#botoes #bTrade{--cor:linear-gradient(135deg,#43c04a,#1b6e20);--brilho:#43a04766}
+#botoes #bBuild{--cor:linear-gradient(135deg,#ff9e2c,#c25e00);--brilho:#fb8c0066}
+#botoes #bEnd  {--cor:linear-gradient(135deg,#ab47bc,#5b1a78);--brilho:#ab47bc66}
+@keyframes pulsa{50%{transform:scale(1.04);box-shadow:0 .5cqw 0 #00000066,0 0 3.5cqw #f2c500}}
+
+/* desativado (não é sua vez) */
+#botoes button:disabled{background:#2a3a5e;color:#8393b5;border-color:#ffffff22;
+  box-shadow:none;text-shadow:none;animation:none;filter:none;opacity:.75;cursor:not-allowed}
+
+
+  /**/
 
 /* Ranking */
 .rk{display:grid;grid-template-columns:30px 22px 1fr auto;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:#ffffff12;border:1px solid transparent}
@@ -70,7 +135,7 @@ aside h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:1px;mar
 
 
 
-/* Design dos botões de ação no centro */
+/* Design dos botões de ação no centro 
 #botoes button {
   background: linear-gradient(135deg, #f2c500, #d6a000);
   color: #10244d;
@@ -96,4 +161,4 @@ aside h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:1px;mar
   border-color: #2d3748;
   box-shadow: none;
   opacity: 0.7;
-}
+}*/

@@ -360,12 +360,19 @@ function iniciar(){
 function montaTabuleiro(){
   $('#board').innerHTML = ''; 
   const centro = document.createElement('div'); centro.className = 'centro';
-  centro.innerHTML = `<h2>BANCO IMOBILIÁRIO<br>DO RN</h2><div id="dados" aria-live="polite">🎲 🎲</div><div id="botoes">
-      <button id="bRoll" onclick="rolar()">Rolar dados</button>
-      <button id="bMort" onclick="hipotecas()">Hipotecar</button>
-      <button id="bTrade" onclick="negociar()">Negociar</button>
-      <button id="bBuild" onclick="construir()">Construir</button>
-      <button id="bEnd" onclick="fim()">Encerrar vez</button></div>`;
+    centro.innerHTML = `
+    <div class="logo">
+      <h2>BANCO IMOBILIÁRIO<br><span>DO RN</span></h2>
+      <p class="sub">★ Natal • Mossoró • Pipa • Seridó ★</p>
+    </div>
+    <div id="dados" aria-live="polite">🎲 🎲</div>
+    <div id="botoes">
+      <button id="bRoll"  onclick="rolar()">🎲 Rolar dados</button>
+      <button id="bMort"  onclick="hipotecas()">🏦 Hipotecar</button>
+      <button id="bTrade" onclick="negociar()">🤝 Negociar</button>
+      <button id="bBuild" onclick="construir()">🏠 Construir</button>
+      <button id="bEnd"   onclick="fim()">⏭ Encerrar vez</button>
+    </div>`;
   $('#board').appendChild(centro);
 
   T.forEach((c,i)=>{
@@ -495,11 +502,17 @@ async function turno(){
 }
 
 async function rolar(){
-  if(MODO === 'online') { G.busy = true; ui(); socket.emit('rolarDados', salaAtual); return; }
+  if(MODO === 'online') { 
+    G.busy = true; 
+    ui(); 
+    socket.emit('rolarDados', salaAtual);
+     return; }
   
   G.busy=true; G.rolled=true; ui();
   tocar('dados'); // 🔊
+  $('#dados').classList.add('rolando');
   let a,b; for(let i=0;i<8;i++){ a=1+Math.random()*6|0; b=1+Math.random()*6|0; $('#dados').textContent=`${'⚀⚁⚂⚃⚄⚅'[a-1]} ${'⚀⚁⚂⚃⚄⚅'[b-1]}`; await sleep(90); }
+  $('#dados').classList.remove('rolando');
   G.roll=a+b; const p=G.p[G.cur]; addLog(`${p.name} tirou ${a}+${b} = ${G.roll}`);
   
   for(let i=0;i<G.roll;i++){ 
@@ -869,6 +882,7 @@ socket.on('resultadoDados', async (d) => {
   if (MODO !== 'online') return;
 
   if (d.jogador === 'Sistema') { addLog(d.acaoMsg); return; }
+  $('#dados').classList.add('rolando'); await sleep(500); $('#dados').classList.remove('rolando');
   $('#dados').textContent = `${'⚀⚁⚂⚃⚄⚅'[d.a-1]} ${'⚀⚁⚂⚃⚄⚅'[d.b-1]}`;
   addLog(`🎲 ${d.jogador} tirou ${d.a}+${d.b} = ${d.total}`);
   tocar('dados'); // 🔊
