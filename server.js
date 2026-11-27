@@ -24,6 +24,10 @@ const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
 const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
 const ganhar = (j, v) => { j.money += v; j.ganho = (j.ganho || 0) + v; };
 const perder = (j, v) => { j.money -= v; j.gasto = (j.gasto || 0) + v; };
+const msg = (cod, texto) => io.to(cod).emit('resultadoDados', { a: 0, b: 0, total: 0, jogador: 'Sistema', acaoMsg: texto });
+// guarda a identidade (pid) sem enviá-la aos outros jogadores
+const comPid = (j, pid) => Object.defineProperty(j, 'pid', { value: pid });
+
 const temGrupo = (sala, idx, pos) => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || sala.donos[i]===idx);
 const T = [
  {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
@@ -40,11 +44,12 @@ const T = [
  {n:'Restituição',t:'re',p:150000}, {n:'Redinha',t:'p',p:260000,g:'amarelo'}, {n:'FORTUNA?',t:'s'}
 ];
 
+//Eventos
 io.on('connection', (socket) => {
     socket.on('criarSala', (dados) => {
         const cod = Math.random().toString(36).substring(2, 6).toUpperCase();
         salas[cod] = {
-            jogadores: [{ id: socket.id, name: dados.nome, cor: dados.cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false, casas: 0, hotel: false }],
+            jogadores: [comPid({ id: socket.id, name: dados.nome, cor: dados.cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false, casas: 0, hotel: false }, dados.pid)],
             donos: Array(40).fill(-1), casas: Array(40).fill(0), hotel: Array(40).fill(false), mort: Array(40).fill(false), vezDe: 0, estado: 'esperando'
         };
         socket.join(cod);
@@ -52,9 +57,10 @@ io.on('connection', (socket) => {
         io.to(cod).emit('atualizarJogo', salas[cod]);
     });
 
-    socket.on('entrarSala', ({ codigo, nome, cor }) => {
+    socket.on('entrarSala', ({ codigo, nome, cor, pid }) => {
         if (!salas[codigo]) return socket.emit('erro', 'Sala não encontrada');
-        salas[codigo].jogadores.push({ id: socket.id, name: nome, cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false });
+        if (salas[codigo].estado !== 'esperando') return socket.emit('erro', 'A partida já começou');
+        salas[codigo].jogadores.push(comPid({ id: socket.id, name: nome, cor, pos: 0, money: 2560000, jail: 0, free: 0, ferias: 0, out: false }, pid));
         socket.join(codigo);
         socket.emit('entrouSala', codigo);
         io.to(codigo).emit('atualizarJogo', salas[codigo]);
@@ -241,14 +247,68 @@ io.on('connection', (socket) => {
             io.to(codigo).emit('resultadoDados', { a: 0, b: 0, total: 0, jogador: 'Sistema', acaoMsg: `${alvo.name} recusou a proposta de ${proponente.name}.` });
         }
     });
+        socket.on('reconectar', ({ codigo, pid }) => {
+        const sala = salas[codigo];
+        const j = sala && sala.jogadores.find(x => x.pid === pid);
+        if (!j || j.out) return socket.emit('reconexaoFalhou');
+        const estavaOff = j.offline;
+        j.id = socket.id; j.offline = false; delete j.offlineDesde;
+        socket.join(codigo);
+        socket.emit('reconectado', codigo);
+        if (estavaOff) msg(codigo, `${j.name} voltou para a partida.`);
+        io.to(codigo).emit('atualizarJogo', sala);
+    });
 
-    socket.on('disconnect', () => {
+    socket.on('sairSala', ({ codigo, pid } = {}) => {
+        const sala = salas[codigo]; if (!sala) return;
+        const idx = sala.jogadores.findIndex(j => j.pid === pid);
+        if (idx === -1) return;
+        if (sala.estado !== 'jogando') {
+            sala.jogadores.splice(idx, 1);
+            if (sala.jogadores.length === 0) delete salas[codigo]; else io.to(codigo).emit('atualizarJogo', sala);
+            return;
+        }
+        const j = sala.jogadores[idx];
+        j.out = true; j.offline = true; j.offlineDesde = Date.now();
+        sala.donos.forEach((d, i) => { if (d === idx) { sala.donos[i] = -1; sala.mort[i] = false; sala.casas[i] = 0; sala.hotel[i] = false; } });
+        msg(codigo, `${j.name} saiu da partida.`);
+        if (sala.vezDe === idx) sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+        io.to(codigo).emit('atualizarJogo', sala);
+    });
+
+        socket.on('disconnect', () => {
         for (const cod in salas) {
             const sala = salas[cod], idx = sala.jogadores.findIndex(j => j.id === socket.id);
-            if (idx !== -1) { sala.jogadores.splice(idx, 1); socket.leave(cod); if (sala.jogadores.length === 0) delete salas[cod]; else io.to(cod).emit('atualizarJogo', sala); break; }
+            if (idx === -1) continue;
+            if (sala.estado === 'jogando') {
+                const j = sala.jogadores[idx];
+                j.offline = true; j.offlineDesde = Date.now();
+                msg(cod, `${j.name} saiu (conexão perdida). Pode voltar a qualquer momento.`);
+                io.to(cod).emit('atualizarJogo', sala);
+            } else {
+                sala.jogadores.splice(idx, 1);
+                if (sala.jogadores.length === 0) delete salas[cod]; else io.to(cod).emit('atualizarJogo', sala);
+            }
+            break;
         }
     });
 });
+
+// pula a vez de quem está offline há mais de 20s (ou saiu); apaga salas vazias após 10 min
+setInterval(() => {
+    const agora = Date.now();
+    for (const cod in salas) {
+        const sala = salas[cod];
+        if (sala.estado !== 'jogando') continue;
+        if (sala.jogadores.every(j => j.offline && agora - j.offlineDesde > 600000)) { delete salas[cod]; continue; }
+        const j = sala.jogadores[sala.vezDe];
+        if (j && (j.out || (j.offline && agora - j.offlineDesde > 20000))) {
+            if (!j.out) msg(cod, `Vez de ${j.name} pulada (offline).`);
+            sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
+            io.to(cod).emit('atualizarJogo', sala);
+        }
+    }
+}, 2000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`RODANDO NA PORTA ${PORT}`));
