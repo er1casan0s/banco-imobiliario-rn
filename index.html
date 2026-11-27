@@ -16,7 +16,7 @@
   <h1>BANCO IMOBILIÁRIO <span>DO RN</span></h1>
   <p class="tag">Banco Regional • Rio Grande do Norte</p>
   <div id="s1">
-    <input id="nome" placeholder="Digite seu nome" maxlength="14">
+    <input id="nome" placeholder="Digite seu nome" maxlength="14" aria-live="Seu nome">
     <p>Como você quer jogar?</p>
     <button onclick="modo('ia')">🤖 Potiguar084</button>
     <button onclick="modo('online')">🌐 Online (salas)</button>
@@ -102,13 +102,13 @@
   </div>
   <aside>
     <h3>🏆 Ranking (patrimônio)</h3><div id="rank"></div>
-    <h3>📜 Histórico</h3><div id="log"></div>
+    <h3>📜 Histórico</h3><div id="log" role="log" aria-live="polite"></div>
     <button onclick="sairDoJogo()" style="width: 100%; margin-top: 15px; background: linear-gradient(135deg, #d62d2d, #8a1c1c); color: #fff; border: 1px solid #ff8888;">🚪 Sair da Partida</button>
   </aside>
 </div>
 
 <!-- MODAL DE CARTAS E AVISOS -->
-<div id="modal" hidden>
+<div id="modal" hidden role="dialog" aria-live="true">
   <div class="carta">
     <div id="mt"></div><div id="mb"></div><div id="mbtn"></div>
   </div>

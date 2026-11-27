@@ -70,8 +70,9 @@ function aviso(emoji, titulo, texto = '', cor = '#00e5ff', ms = 2300, som = '') 
     el.className = 'aviso'; el.setAttribute('role','alert');
     el.style.setProperty('--cor', cor);
     el.innerHTML = `<div class="av-box"><div class="av-emoji">${emoji}</div><div class="av-tit">${titulo}</div>${texto ? `<div class="av-txt">${texto}</div>` : ''}</div>`;
+    el.setAttribute('role','alert');
     board.appendChild(el);
-    setTimeout(() => { el.classList.add('sai'); setTimeout(() => { el.remove(); res(); }, 350); }, ms * tempoA11y());
+    setTimeout(() => { el.classList.add('sai'); setTimeout(() => { el.remove(); res(); }, 350); }, ms * ((window.A11Y && A11Y.tempo) || 1));
   }));
   return filaAviso;
 }
@@ -368,7 +369,12 @@ function montaTabuleiro(){
   T.forEach((c,i)=>{
     const d=document.createElement('div'); d.className='cell'+(c.img?' img':'')+(c.t==='s'?' s':'');
     d.tabIndex=0; d.setAttribute('role','button'); d.onclick=()=>cardCasa(i); d.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); cardCasa(i); } };
-    d.id='c'+i; d.setAttribute('aria-label', c.n + (c.t==='p'||c.t==='c' ? ', '+R(c.p) : '')); const [r,k]=XY(i); d.style.gridRow=r+1; d.style.gridColumn=k+1;
+
+    d.id='c'+i; 
+    d.setAttribute('aria-label', c.n + (c.p ? ','+R(c.p) : '')); 
+    const [r,k]=XY(i); 
+    d.style.gridRow=r+1; 
+    d.style.gridColumn=k+1;
     if(c.img) d.style.backgroundImage=`url(img/${c.img}.png)`;
     
     let label = c.n;
