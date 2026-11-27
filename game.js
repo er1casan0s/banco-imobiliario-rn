@@ -67,11 +67,11 @@ function aviso(emoji, titulo, texto = '', cor = '#00e5ff', ms = 2300, som = '') 
     if (som) tocar(som); // 🔊 som do aviso (nome = tipo do aviso)
     if (getComputedStyle(board).position === 'static') board.style.position = 'relative';
     const el = document.createElement('div');
-    el.className = 'aviso';
+    el.className = 'aviso'; el.setAttribute('role','alert');
     el.style.setProperty('--cor', cor);
     el.innerHTML = `<div class="av-box"><div class="av-emoji">${emoji}</div><div class="av-tit">${titulo}</div>${texto ? `<div class="av-txt">${texto}</div>` : ''}</div>`;
     board.appendChild(el);
-    setTimeout(() => { el.classList.add('sai'); setTimeout(() => { el.remove(); res(); }, 350); }, ms);
+    setTimeout(() => { el.classList.add('sai'); setTimeout(() => { el.remove(); res(); }, 350); }, ms * tempoA11y());
   }));
   return filaAviso;
 }
@@ -111,7 +111,7 @@ function tabelaResumo(resumo) {
       `<div style="margin-bottom:8px; padding:6px 8px; border-left:5px solid ${r.cor}; background:#0000000d; border-radius:0 6px 6px 0; ${r.out ? 'opacity:.6;' : ''}">
         <b>${['🥇', '🥈', '🥉'][k] || (k + 1) + 'º'} ${esc(r.name)}${r.out ? ' (saiu/faliu)' : ''}</b><br>
         Patrimônio: ${R(r.patrimonio)}<br>
-        <span style="color:#2e8b3d">Ganhos: ${R(r.ganho)}</span> · <span style="color:#d62d2d">Perdas: ${R(r.gasto)}</span>
+        <span style="color:#0072B2">▲ Ganhos: ${R(r.ganho)}</span> · <span style="color:#D55E00">▼ Perdas: ${R(r.gasto)}</span>
       </div>`).join('') + '</div>';
 }
 function resumoLocal() {
@@ -131,7 +131,12 @@ async function fimDeJogo(nome, eu, resumo) {
 }
 
 const COR = {rosa:'#d6409f',roxo:'#7b3fa0',laranja:'#f28c1e',amarelo:'#f2c500',vermelho:'#d62d2d',vclaro:'#7ccc5a',vescuro:'#2e8b3d',azul:'#3ba0d8',preto:'#222'};
-const CORES = [['Vermelho','#e53935'],['Roxo','#8e24aa'],['Rosa','#ec407a'],['Amarelo','#fdd835'],['Azul','#1e88e5'],['Verde','#43a047'],['Laranja','#fb8c00'],['Marrom','#6d4c41']];
+// ♿ Paleta Okabe-Ito (segura para daltonismo). Os peões também têm número, então a cor nunca é a única pista.
+const CORES = [['Laranja','#E69F00'],['Azul-claro','#56B4E9'],['Verde','#009E73'],['Amarelo','#F0E442'],['Azul','#0072B2'],['Vermelhão','#D55E00'],['Rosa','#CC79A7'],['Branco','#F5F5F5']];
+// ♿ Número de cada grupo de cor (aparece dentro da faixa colorida da casa)
+const GRUPO_NUM = {rosa:'1',roxo:'2',laranja:'3',amarelo:'4',vermelho:'5',vclaro:'6',vescuro:'7',azul:'8',preto:'9'};
+// ♿ Tempo extra para ler avisos (1x, 2x, 3x) — vem do painel de acessibilidade
+const tempoA11y = () => (window.A11Y && window.A11Y.tempo) || 1;
 
 const P = (n,p,g) => ({n,p,g,t:'p'});
 const C = (n,p)   => ({n,p,g:'preto',t:'c'});
@@ -318,8 +323,8 @@ function voltarInicio() {
 function fecharModalOnline() { $('#modalOnline').hidden = true; $('#s1').hidden = false; MODO = 'ia'; }
 function mostrarOpcoes() { $('#telaOpcoesOnline').hidden = false; $('#telaEntrarSala').hidden = true; }
 function mostrarEntrarSala() { $('#telaOpcoesOnline').hidden = true; $('#telaEntrarSala').hidden = false; $('#inputCodigoSala').value = ''; $('#inputCodigoSala').focus(); }
-function mostrarCriarSala() { $('#modalOnline').hidden = true; socket.emit('criarSala', { nome: NOME, cor: '#e53935', pid: PID }); }
-function confirmarEntrarSala() { const c = $('#inputCodigoSala').value.trim().toUpperCase(); if(c.length<4) return alert('Código inválido'); $('#modalOnline').hidden = true; socket.emit('entrarSala', { codigo: c, nome: NOME, cor: '#1e88e5', pid: PID }); }
+function mostrarCriarSala() { $('#modalOnline').hidden = true; socket.emit('criarSala', { nome: NOME, cor: $('#corOnline').value, pid: PID }); }
+function confirmarEntrarSala() { const c = $('#inputCodigoSala').value.trim().toUpperCase(); if(c.length<4) return alert('Código inválido'); $('#modalOnline').hidden = true; socket.emit('entrarSala', { codigo: c, nome: NOME, cor: $('#corOnline').value, pid: PID }); }
 
 function montaLinhas(){
   const n=+$('#qtd').value; let h='';
@@ -352,7 +357,7 @@ function iniciar(){
 function montaTabuleiro(){
   $('#board').innerHTML = ''; 
   const centro = document.createElement('div'); centro.className = 'centro';
-  centro.innerHTML = `<h2>BANCO IMOBILIÁRIO<br>DO RN</h2><div id="dados">🎲 🎲</div><div id="botoes">
+  centro.innerHTML = `<h2>BANCO IMOBILIÁRIO<br>DO RN</h2><div id="dados" aria-live="polite">🎲 🎲</div><div id="botoes">
       <button id="bRoll" onclick="rolar()">Rolar dados</button>
       <button id="bMort" onclick="hipotecas()">Hipotecar</button>
       <button id="bTrade" onclick="negociar()">Negociar</button>
@@ -362,7 +367,8 @@ function montaTabuleiro(){
 
   T.forEach((c,i)=>{
     const d=document.createElement('div'); d.className='cell'+(c.img?' img':'')+(c.t==='s'?' s':'');
-    d.id='c'+i; const [r,k]=XY(i); d.style.gridRow=r+1; d.style.gridColumn=k+1;
+    d.tabIndex=0; d.setAttribute('role','button'); d.onclick=()=>cardCasa(i); d.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); cardCasa(i); } };
+    d.id='c'+i; d.setAttribute('aria-label', c.n + (c.t==='p'||c.t==='c' ? ', '+R(c.p) : '')); const [r,k]=XY(i); d.style.gridRow=r+1; d.style.gridColumn=k+1;
     if(c.img) d.style.backgroundImage=`url(img/${c.img}.png)`;
     
     let label = c.n;
@@ -370,16 +376,50 @@ function montaTabuleiro(){
     else if(c.t==='re') label = `Restituição<br><span style="font-size:0.8em">+R$ 150.000</span>`;
     else if(c.t==='p') label = `${c.n}<br><span style="font-size:0.8em">${R(c.p)}</span>`;
 
-    d.innerHTML=(c.g?`<i class="band" style="background:${COR[c.g]}"></i>`:'')+`<b>${label}</b><em class="own"></em><div class="pw"></div><div class="houses"></div>`;
+    d.innerHTML=(c.g?`<i class="band" style="background:${COR[c.g]}">${GRUPO_NUM[c.g]||''}</i>`:'')+`<b>${label}</b><em class="own"></em><div class="pw"></div><div class="houses"></div>`;
     $('#board').append(d);
   });
+}
+
+// ♿ CARD GRANDE DA CASA (clique ou Enter/Espaço numa casa do tabuleiro)
+function cardCasa(i){
+  if(!$('#modal').hidden) return;           // não abre por cima de outra janela
+  const c = T[i];
+  const dono = G.own[i] >= 0 ? G.p[G.own[i]] : null;
+  let corpo = '';
+  if(c.t==='p'){
+    const nomes = ['Sem casas','1 casa','2 casas','3 casas','4 casas','🏨 Hotel'];
+    const atual = G.hotel[i] ? 5 : G.casas[i];
+    corpo = `<p style="font-size:1.15em;margin:4px 0">Grupo <b>${GRUPO_NUM[c.g]}</b> · Preço: <b>${R(c.p)}</b></p>
+      <p style="margin:4px 0">Dono: <b>${dono ? esc(dono.name) : 'Banco (à venda)'}</b>${G.mort[i] ? ' · <b>hipotecada</b>' : ''}</p>
+      <p style="margin:4px 0">Custo de cada casa: <b>${R(CUSTO_CASA[c.g])}</b></p>
+      <div style="text-align:left;margin-top:8px"><b>Aluguel:</b>` +
+      nomes.map((n,k)=>`<div style="display:flex;justify-content:space-between;padding:2px 6px;${k===atual?'background:#ffe36b;font-weight:800;':''}"><span>${n}</span><span>${R(aluguelProp(c, k===5?0:k, k===5))}</span></div>`).join('') +
+      `</div><p style="margin:8px 0 0">Hipoteca: <b>${R(c.p/2)}</b> · Resgate: <b>${R(c.p*.55)}</b></p>`;
+  } else if(c.t==='c'){
+    corpo = `<p style="font-size:1.15em;margin:4px 0">Empresa · Preço: <b>${R(c.p)}</b></p>
+      <p style="margin:4px 0">Dono: <b>${dono ? esc(dono.name) : 'Banco (à venda)'}</b>${G.mort[i] ? ' · <b>hipotecada</b>' : ''}</p>
+      <p style="margin:4px 0">Aluguel: <b>${R(80000)} × valor dos dados</b></p>`;
+  } else {
+    const txt = {
+      in:'Ao passar ou parar aqui, você recebe <b>R$ 200.000</b> de salário.',
+      pr:'Apenas visitando. Quem é preso fica aqui.',
+      ca:'Quem cai aqui vai preso por <b>2 rodadas</b>. Fiança: <b>R$ 200.000</b>, ou use um Habeas Corpus.',
+      fe:'Você fica <b>2 rodadas</b> sem jogar.',
+      s:'Sorteia uma carta de Fortuna: pode dar ou tirar dinheiro, prender, ou ser a Carta do Hacker.',
+      rf:'Você paga <b>R$ 200.000</b> de imposto.',
+      re:'Você recebe <b>R$ 150.000</b> de restituição.'
+    }[c.t] || '';
+    corpo = `<p style="font-size:1.1em">${txt}</p>`;
+  }
+  ask(c.n, corpo, ['Fechar']);
 }
 
 const patrimonio = (p,idx) => p.money + T.reduce((s,c,i)=>s+(G.own[i]===idx?(G.mort[i]?c.p/2:c.p):0),0);
 
 function ui(){
   document.querySelectorAll('.pw').forEach(e=>e.innerHTML='');
-  G.p.forEach(p=>{ if(!p.out) $('#c'+p.pos+' .pw').innerHTML+=`<span class="pawn" style="background:${p.cor}"></span>`; });
+  G.p.forEach((p,i)=>{ if(!p.out) $('#c'+p.pos+' .pw').innerHTML+=`<span class="pawn" title="${esc(p.name)}" style="background:${p.cor}"><span class="pn">${i+1}</span></span>`; });
   
   T.forEach((c,i)=>{ 
     const e=$('#c'+i); if(!e) return; 
@@ -400,11 +440,11 @@ function ui(){
     .map((o,k)=>`
       <div class="rk ${o.i===G.cur?'vez':''} ${o.p.out?'out':''}">
         <span class="pos">${['🥇','🥈','🥉'][k]||k+1}</span>
-        <i class="dot" style="background:${o.p.cor}"></i>
+        <i class="dot" style="background:${o.p.cor}">${o.i+1}</i>
         <div class="inf">
             <b>${o.p.name}${o.p.free?' 🔑':''}${o.p.jail?' 🔒':''}${o.p.ferias?' 🏖️':''}${o.p.offline?' 🔌':''}${o.i===G.cur?' ◄':''}</b>
-            <small style="color:#ff8888">Perdas: ${R(perdasDe(o.p))}</small>
-            <small style="color:#7ccc5a">Ganhos: ${R(ganhosDe(o.p))}</small>
+            <small style="color:#ffb74d">▼ Perdas: ${R(perdasDe(o.p))}</small>
+            <small style="color:#56B4E9">▲ Ganhos: ${R(ganhosDe(o.p))}</small>
         </div>
         <div class="tot">${R(o.v)}</div>
       </div>`).join('');

@@ -1,0 +1,48 @@
+/* ===== ACESSIBILIDADE — carregue DEPOIS do style.css ===== */
+:root{--fs:1}
+
+/* Letra menor/maior: o tabuleiro usa cqw (multiplicador); o resto usa zoom */
+.cell,.cell b{font-size:calc(1.1cqw * var(--fs))}
+.cell small,.own{font-size:calc(.9cqw * var(--fs))}
+aside,.carta,#setup,#lobby,.manual,#botoes button{zoom:var(--fs)}
+
+/* Fonte mais legível (dislexia / baixa visão) */
+body.fonte-legivel,body.fonte-legivel *{font-family:Verdana,Arial,sans-serif!important;letter-spacing:.02em}
+
+/* Alto contraste */
+body.alto-contraste{background:#000}
+body.alto-contraste .bg-carrossel{display:none}
+body.alto-contraste aside,body.alto-contraste #setup,body.alto-contraste #lobby,
+body.alto-contraste .manual{background:#000;border:2px solid #fff;box-shadow:none;backdrop-filter:none}
+body.alto-contraste .cell{background:#000;border-color:#fff}
+body.alto-contraste .cell b{color:#fff;text-shadow:none}
+body.alto-contraste .cell small,body.alto-contraste .tag,body.alto-contraste aside h3{color:#fff}
+
+/* Sem animações (epilepsia, vestibular, TDAH) */
+body.sem-anim *,body.sem-anim *::before,body.sem-anim *::after{animation:none!important;transition:none!important}
+
+/* Foco visível (teclado) e alvos de toque maiores */
+:focus-visible{outline:3px solid #fff;box-shadow:0 0 0 6px #000}
+button{min-height:44px}
+
+/* Números em peões, faixas de grupo e ranking (daltonismo) */
+.band{display:flex;align-items:center;justify-content:center;font-size:1.3cqw;font-weight:800;
+  color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.pawn .pn{position:absolute;left:0;right:0;top:.5cqw;text-align:center;font-size:1.2cqw;font-weight:800;
+  color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.dot{display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff;
+  text-shadow:0 0 2px #000,0 0 2px #000}
+
+/* Botão e painel */
+#btnA11y{position:fixed;left:12px;bottom:12px;z-index:50;width:46px;height:46px;border-radius:50%;
+  padding:0;margin:0;font-size:22px;background:#06163dcc;color:#fff;border:1px solid #00e5ff;zoom:1}
+#painelA11y{position:fixed;left:12px;bottom:68px;z-index:50;background:#06163df5;color:#fff;
+  border:1px solid #00e5ff;border-radius:12px;padding:12px;width:250px;
+  font-family:'Segoe UI',Arial,sans-serif;zoom:1}
+#painelA11y button{display:block;width:100%;margin:4px 0;text-align:left}
+#painelA11y button[aria-pressed="true"]{background:#fff;color:#000}
+
+/* Casas clicáveis (abrem o card grande) */
+.cell{cursor:pointer}
+.cell:hover{filter:brightness(1.15)}
+.cell.hip:hover{filter:grayscale(1) brightness(.85)}
