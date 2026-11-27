@@ -646,7 +646,13 @@ function negociar(){
 socket.on('salaCriada', (c) => { salaAtual = c; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = c; });
 socket.on('entrouSala', (c) => { salaAtual = c; $('#setup').hidden = true; $('#lobby').hidden = false; $('#codigoSala').textContent = c; });
 
-let animando = false, pendente = null;
+let animando = false, pendente = null, jogoAcabou = false;
+
+// quem faliu online escolhe: continuar assistindo ou voltar para a tela inicial
+async function perguntarSaida() {
+  const r = await ask('💥 Você perdeu tudo', 'Você saiu da partida. O que deseja fazer?', ['Continuar assistindo', 'Sair para o início']);
+  if (r === 1) { socket.emit('sairSala', { codigo: salaAtual, pid: PID }); voltarParaInicio(); }
+}
 
 function aplicarEstado(s) {
   $('#lobby').hidden = true; $('#jogo').hidden = false;
@@ -697,7 +703,8 @@ socket.on('resultadoDados', async (d) => {
     if (pendente) { const st = pendente; pendente = null; aplicarEstado(st); }
   }
 
-  if (!jogador || d.jogadorId !== socket.id) return; // as janelas abaixo são só de quem jogou
+    // eu faliu nesta jogada?
+  if (!jogoAcabou && (d.avisos || []).some(a => a.tipo === 'faliu' && a.jogadorId === socket.id)) { await perguntarSaida(); return; }
   if (d.acao === 'comprar') {
     const casa = T[d.posFinal];
     ask(casa.n, `Preço: ${R(casa.p)}<br>Seu saldo: ${R(jogador.money)}`, ['Comprar', 'Não comprar']).then(r => {
@@ -720,12 +727,14 @@ socket.on('resultadoDados', async (d) => {
 socket.on('avisos', async (lista) => {
   if (MODO !== 'online') return;
   while (animando) await sleep(100);
-  mostrarAvisos(lista);
+    await mostrarAvisos(lista);
+  if (!jogoAcabou && lista.some(a => a.tipo === 'faliu' && a.jogadorId === socket.id)) perguntarSaida();
 });
 
 // sobrou só um jogador: fim da partida
 socket.on('fimJogo', async (d) => {
   if (MODO !== 'online') return;
+  jogoAcabou = true;
   while (animando) await sleep(100);
   await sleep(300);
   await filaAviso;

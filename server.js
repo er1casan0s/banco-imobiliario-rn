@@ -49,12 +49,38 @@ const T = [
  {n:'Restituição',t:'re',p:150000}, {n:'Redinha',t:'p',p:260000,g:'amarelo'}, {n:'FORTUNA?',t:'s'}
 ];
 
+
 // passa a vez para o próximo jogador que ainda está na partida
-function proxVez(sala) {
+// (quem está de férias ou preso perde a vez, como no modo offline)
+function proxVez(sala, cod) {
     const n = sala.jogadores.length;
-    for (let k = 0; k < n; k++) {
+    for (let k = 0; k < n * 5; k++) {
         sala.vezDe = (sala.vezDe + 1) % n;
-        if (!sala.jogadores[sala.vezDe].out) return;
+        const j = sala.jogadores[sala.vezDe];
+        if (j.out) continue;
+        if (j.ferias > 0) {
+            j.ferias--;
+            msg(cod, `🏖️ ${j.name} está de férias e perde a vez.`);
+            continue;
+        }
+        if (j.jail > 0) {
+            if (j.free > 0) { // usa o Habeas Corpus
+                j.free--; j.jail = 0;
+                msg(cod, `🔑 ${j.name} usou o Habeas Corpus e saiu da prisão.`);
+                return;
+            }
+            if (j.jail === 2) { // 1ª rodada preso: perde a vez
+                j.jail = 1;
+                msg(cod, `🔒 ${j.name} está preso e perde a vez.`);
+                continue;
+            }
+            // 2ª rodada: paga R$ 50.000 e sai, jogando normalmente
+            perder(j, Math.min(50000, Math.max(0, j.money)));
+            j.jail = 0;
+            msg(cod, `🔓 ${j.name} pagou R$ 50.000 e saiu da prisão.`);
+            return;
+        }
+        return;
     }
 }
 
