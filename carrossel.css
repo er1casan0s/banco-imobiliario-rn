@@ -1,0 +1,41 @@
+/* Fundo do carrossel (fica ATRÁS de tudo) */
+.bg-carrossel{
+  position:fixed; inset:0; z-index:-1;
+  overflow:hidden; background:#020a1f;
+  pointer-events:none;
+}
+
+.bg-carrossel .slide{
+  position:absolute; inset:0;
+  background-size:cover; background-position:center;
+  opacity:0;
+  transition:opacity 1.8s ease-in-out;   /* efeito de dissolver */
+}
+.bg-carrossel .slide.ativo{ opacity:1; }
+
+/* zoom lento (efeito cinematográfico) */
+.bg-carrossel .slide.ativo,
+.bg-carrossel .slide.saindo{
+  animation:zoomLento 14s linear forwards;
+}
+@keyframes zoomLento{
+  from{ transform:scale(1); }
+  to  { transform:scale(1.12); }
+}
+
+/* Película azul escura por cima: mantém o texto legível e o tema neon */
+.bg-carrossel::after{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse at center, #06163d55 0%, #020a1fcc 100%),
+    linear-gradient(180deg, #020a1f99, #06163d66 50%, #020a1fcc);
+}
+
+/* Some quando a partida começa (o tabuleiro fica com o fundo normal) */
+body:has(#jogo:not([hidden])) .bg-carrossel{ display:none; }
+
+/* Respeita quem desativa animações no celular/PC */
+@media (prefers-reduced-motion: reduce){
+  .bg-carrossel .slide.ativo,
+  .bg-carrossel .slide.saindo{ animation:none; }
+}
