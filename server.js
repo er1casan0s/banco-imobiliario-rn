@@ -22,6 +22,8 @@ const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
                     laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
 // sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
 const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
+const ganhar = (j, v) => { j.money += v; j.ganho = (j.ganho || 0) + v; };
+const perder = (j, v) => { j.money -= v; j.gasto = (j.gasto || 0) + v; };
 const temGrupo = (sala, idx, pos) => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || sala.donos[i]===idx);
 const T = [
  {n:'INÍCIO',t:'in'}, {n:'Av. Hermes',t:'p',p:100000,g:'vclaro'}, {n:'Cosern',t:'c',p:200000},
@@ -76,7 +78,7 @@ io.on('connection', (socket) => {
         const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), total = a + b;
         const posAnt = j.pos;
         j.pos = (posAnt + total) % 40;
-        if (j.pos < posAnt) j.money += 200000; // passou pelo Início
+        if (j.pos < posAnt) ganhar(j,200000); // passou pelo Início
         
         const casa = T[j.pos];
         let acao = null;
@@ -88,8 +90,8 @@ io.on('connection', (socket) => {
                 acao = 'comprar';
             } else if (dono !== sala.vezDe && !sala.mort[j.pos]) {
                 let aluguelBase = casa.t === 'c' ? 50000 * total : aluguelProp(casa, sala.casas[j.pos], sala.hotel[j.pos]);
-                j.money -= aluguelBase;
-                sala.jogadores[dono].money += aluguelBase;
+                perder(j,aluguelBase);
+                ganhar(sala.jogadores[dono], aluguelBase);
                 acaoMsg = `Aluguel de R$ ${aluguelBase.toLocaleString('pt-BR')} pago a ${sala.jogadores[dono].name}`;
             }
         } else if (casa.t === 'ca') {
@@ -97,10 +99,10 @@ io.on('connection', (socket) => {
             acao = 'preso';
             acaoMsg = 'Caiu no Camburão e foi para a Prisão!';
         } else if (casa.t === 'rf') {
-            j.money -= 200000;
+            perder(j,200000);
             acaoMsg = 'Pagou R$ 200.000 à Receita Federal';
         } else if (casa.t === 're') {
-            j.money += 150000;
+            ganhar(j,150000);
             acaoMsg = 'Recebeu R$ 150.000 de Restituição';
         } else if (casa.t === 'fe') {
             j.ferias = 2;
@@ -132,7 +134,7 @@ io.on('connection', (socket) => {
         const casa = T[j.pos];
         
         if (j.money >= casa.p) { 
-            j.money -= casa.p; 
+            perder(j,casa.p); 
             sala.donos[j.pos] = sala.vezDe; 
         }
         sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
@@ -149,12 +151,12 @@ io.on('connection', (socket) => {
         const sala = salas[codigo]; if (!sala) return;
         const j = sala.jogadores[sala.vezDe];
         const outros = sala.jogadores.filter(x => x !== j && !x.out);
-        if (tipo === 'm') j.money += v;
-        else if (tipo === 'all') outros.forEach(o => { o.money -= v; j.money += v; });
-        else if (tipo === 'each') outros.forEach(o => { o.money += v; j.money -= v; });
+        if (tipo === 'm') { if (v >= 0) ganhar(j, v); else perder(j, -v); }
+        else if (tipo === 'all') outros.forEach(o => { perder(o, v); ganhar(j, v); });
+        else if (tipo === 'each') outros.forEach(o => { ganhar(o, v); perder(j, v); });
         else if (tipo === 'jail') { j.pos = 10; j.jail = 2; }
         else if (tipo === 'free') j.free++;
-        else if (tipo === 'start') { j.pos = 0; j.money += 200000; }
+        else if (tipo === 'start') { j.pos = 0; ganhar(j, 200000); }
         else if (tipo === 'bankrupt') j.money = 0;
         sala.vezDe = (sala.vezDe + 1) % sala.jogadores.length;
         io.to(codigo).emit('atualizarJogo', sala);
@@ -166,7 +168,7 @@ io.on('connection', (socket) => {
         if (dono < 0 || !jog || jog.id !== socket.id || T[pos].t !== 'p' || sala.mort[pos] || sala.hotel[pos] || !temGrupo(sala, dono, pos)) return;
         const custo = CUSTO_CASA[T[pos].g];
         if (jog.money < custo) return;
-        jog.money -= custo;
+        perder(jog,custo);
         if (sala.casas[pos] < 4) sala.casas[pos]++; else { sala.casas[pos] = 0; sala.hotel[pos] = true; }
         io.to(codigo).emit('atualizarJogo', sala);
     });

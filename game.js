@@ -26,6 +26,9 @@ const CUSTO_CASA = {rosa:120000, azul:50000, vermelho:75000, amarelo:150000,
                     laranja:80000, vclaro:100000, vescuro:100000, roxo:115000};
 // sem casa = 10% do preço; cada casa dobra; hotel = 5 casas (x32)
 const aluguelProp = (c, casas, hotel) => c.p * 0.1 * Math.pow(2, hotel ? 5 : casas);
+const perdasDe = p => MODO === 'online' ? (p.gasto || 0) : (totalGasto[p.name] || 0);
+const ganhosDe = p => MODO === 'online' ? (p.ganho || 0) : (totalGanho[p.name] || 0);
+
 // true se o jogador "idx" é dono de TODAS as propriedades da cor da casa "pos"
 const temGrupo = (idx, pos) => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || G.own[i]===idx);
 const COR = {rosa:'#d6409f',roxo:'#7b3fa0',laranja:'#f28c1e',amarelo:'#f2c500',vermelho:'#d62d2d',vclaro:'#7ccc5a',vescuro:'#2e8b3d',azul:'#3ba0d8',preto:'#222'};
@@ -301,8 +304,8 @@ function ui(){
         <i class="dot" style="background:${o.p.cor}"></i>
         <div class="inf">
             <b>${o.p.name}${o.p.free?' 🔑':''}${o.p.jail?' 🔒':''}${o.p.ferias?' 🏖️':''}${o.i===G.cur?' ◄':''}</b>
-            <small style="color:#ff8888">Perdas: ${R(totalGasto[o.p.name]||0)}</small>
-            <small style="color:#7ccc5a">Ganhos: ${R(totalGanho[o.p.name]||0)}</small>
+            <small style="color:#ff8888">Perdas: ${R(perdasDe(o.p))}</small>
+            <small style="color:#7ccc5a">Ganhos: ${R(ganhosDe(o.p))}</small>
         </div>
         <div class="tot">${R(o.v)}</div>
       </div>`).join('');
