@@ -459,24 +459,29 @@ function hipotecas(){
 
 function construir(){
   const me = G.cur;
- const minhas = T.map((c,i)=>i).filter(i=>G.own[i]===me && c.t==='p' && !G.mort[i] && temGrupo(me,i));
-if(minhas.length === 0) return ask('Construir', 'Você só pode construir quando tiver <b>todas</b> as propriedades da mesma cor (par ou trio).');
+  // true se o jogador tem TODAS as propriedades da mesma cor da casa "pos"
+  const completo = pos => T.every((c,i) => c.t!=='p' || c.g!==T[pos].g || G.own[i]===me);
+  const minhas = T.map((c,i)=>i).filter(i => T[i].t==='p' && G.own[i]===me);
+  if(minhas.length === 0) return ask('Construir', 'Você ainda não tem terrenos.');
+
   const lista = () => {
-    let html = '<div style="max-height:240px; overflow-y:auto;">';
+    let html = '<p style="font-size:13px; margin:0 0 8px;">Só dá para construir com <b>todas</b> as propriedades da mesma cor.</p><div style="max-height:240px; overflow-y:auto;">';
     minhas.forEach(i => {
       const custo = CUSTO_CASA[T[i].g];
       const estado = G.hotel[i] ? '🏨 Hotel' : `${G.casas[i]}/4 casas`;
-      const btn = G.hotel[i] ? '<small>Máximo</small>'
-        : `<button onclick="fazerConstrucao(${i})" style="padding:5px 10px; font-size:12px;">${G.casas[i]===4?'Hotel':'Casa'} ${R(custo)}</button>`;
-      html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                 <span>${T[i].n} (${estado})</span>${btn}</div>`;
+      let btn;
+      if (G.hotel[i]) btn = '<small>Máximo</small>';
+      else if (G.mort[i]) btn = '<small>Hipotecada</small>';
+      else if (!completo(i)) btn = '<small>Faltam as da mesma cor</small>';
+      else btn = `<button onclick="fazerConstrucao(${i})" style="padding:5px 10px; font-size:12px;">${G.casas[i]===4?'Hotel':'Casa'} ${R(custo)}</button>`;
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                 <span style="text-align:left;">${T[i].n} (${estado})</span>${btn}</div>`;
     });
     return html + '</div>';
   };
 
   window.fazerConstrucao = pos => {
-        if (!temGrupo(me, pos)) return;
-    if (G.hotel[pos]) return;
+    if (G.hotel[pos] || G.mort[pos] || !completo(pos)) return;
     const custo = CUSTO_CASA[T[pos].g];
     if (G.p[me].money < custo) return alert(`Você não tem ${R(custo)}.`);
 
