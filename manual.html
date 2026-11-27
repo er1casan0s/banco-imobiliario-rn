@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual — Banco Imobiliário do RN</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .manual{max-width:820px;margin:4vh auto;padding:32px 26px;border-radius:20px;
+    background:#06163dcc;border:1px solid #00e5ff88;backdrop-filter:blur(8px);
+    box-shadow:0 0 30px #00e5ff55;}
+  .manual h1{font-size:clamp(22px,5vw,32px);text-align:center;
+    background:linear-gradient(90deg,#00e5ff,#fff,#f2c500);-webkit-background-clip:text;
+    background-clip:text;color:transparent;margin:0 0 6px}
+  .manual h2{font-family:Orbitron,sans-serif;color:#7fdcff;font-size:18px;
+    border-bottom:1px solid #00e5ff55;padding-bottom:6px;margin-top:28px}
+  .manual p,.manual li{font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.6;color:#e6f2ff}
+  .manual ul{padding-left:22px}
+  .manual .box{background:#ffffff0d;border-left:4px solid #f2c500;padding:10px 14px;
+    border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+  .manual .voltar{display:inline-block;margin-top:24px;background:linear-gradient(135deg,#0a3d8f,#0b6fd6);
+    color:#fff;border:1px solid #00e5ff;padding:12px 20px;border-radius:10px;text-decoration:none;
+    font-weight:700;letter-spacing:1px}
+  .manual .voltar:hover{transform:translateY(-2px);box-shadow:0 0 22px #00e5ffcc}
+  .baixar{background:linear-gradient(135deg,#f2c500,#d6a000);color:#10244d;border:2px solid #fff;
+    padding:12px 20px;border-radius:10px;font-weight:800;cursor:pointer;font-size:15px;margin-top:10px}
+  .baixar:hover{transform:scale(1.05)}
+</style>
+</head>
+<body>
+<div class="manual">
+  <h1>BANCO IMOBILIÁRIO DO RN</h1>
+  <p style="text-align:center;color:#7fdcff;letter-spacing:3px;font-size:12px;text-transform:uppercase;">
+    Manual Oficial de Regras</p>
+
+  <h2>🎯 Objetivo</h2>
+  <p>Ser o <b>último jogador ativo</b> na partida. Quem falir (saldo negativo sem conseguir vender propriedades) ou sair, está eliminado. O último que sobrar vence.</p>
+
+  <h2>🎲 Como Jogar (Turno)</h2>
+  <ol>
+    <li>Clique em <b>🎲 Rolar dados</b>. O peão anda o número sorteado de casas.</li>
+    <li>Ao passar ou parar no <b>INÍCIO</b>, recebe <b>R$ 200.000</b> de salário.</li>
+    <li>Cai numa casa e resolve a ação dela (comprar, pagar aluguel, carta, etc).</li>
+    <li>Clique em <b>⏭ Encerrar vez</b> para passar o turno ao próximo jogador.</li>
+    <li><b>Tirar dupla (6+6) permite rolar de novo</b> antes de encerrar a vez.</li>
+  </ol>
+
+  <h2>💰 Saldo inicial</h2>
+  <p>Cada jogador começa com <b>R$ 2.560.000</b>.</p>
+
+  <h2>🏠 Propriedades</h2>
+  <ul>
+    <li>Parar numa casa <b>sem dono</b> permite comprá-la pelo preço inicial (o valor aparece embaixo do nome).</li>
+    <li>Se outro jogador cair na sua propriedade, ele paga <b>aluguel</b>: <b>10% do preço</b> (sem casas).</li>
+    <li>Propriedades <b>hipotecadas</b> não pagam aluguel.</li>
+    <li>Empresas (Cosern, CaboTelecom, Caern, etc.) cobram <b>R$ 80.000 × valor dos dados</b> de aluguel.</li>
+  </ul>
+
+  <h2>🏗️ Construir casas e hotel</h2>
+  <ul>
+    <li>Só é possível construir quando você tem <b>todas as propriedades da mesma cor</b>.</li>
+    <li>Cada casa <b>dobra</b> o aluguel: 1 casa = 20%, 2 = 40%, 3 = 80%, 4 = 160%.</li>
+    <li>Com 5 construções, vira <b>🏨 Hotel</b> e o aluguel passa a ser <b>32×</b> o valor base (320% do preço).</li>
+    <li>O custo de cada casa varia pela cor do grupo (R$ 50.000 a R$ 150.000).</li>
+  </ul>
+
+  <h2>🏦 Hipotecar</h2>
+  <ul>
+    <li>Hipotecar uma propriedade rende <b>50% do preço</b> na hora.</li>
+    <li>Resgatar custa <b>55% do preço</b>.</li>
+    <li>Propriedade hipotecada <b>não cobra aluguel</b> e fica acinzentada no tabuleiro.</li>
+  </ul>
+
+  <h2>🤝 Negociar</h2>
+  <p>Você pode propor trocas com qualquer jogador ativo: dar/receber propriedades e/ou dinheiro. No modo online, o outro jogador recebe a proposta e aceita ou recusa.</p>
+
+  <h2>🎴 Fortuna (cartas)</h2>
+  <p>Casas marcadas como <b>FORTUNA?</b> sorteiam uma carta aleatória, que pode:</p>
+  <ul>
+    <li>Dar ou tirar dinheiro do jogador;</li>
+    <li>Fazer todos pagarem a você (ou você pagar a todos);</li>
+    <li>Mandar para a prisão;</li>
+    <li>Dar um <b>Habeas Corpus</b> (carta para sair da prisão quando quiser);</li>
+    <li>Levar de volta ao INÍCIO com salário;</li>
+    <li><b>💥 Carta do Hacker</b> — você perde <b>metade do saldo</b>. Se ficar negativo, o jogo oferece vender suas propriedades ao banco pelo preço inicial para continuar.</li>
+  </ul>
+
+  <h2>🚓 Prisão e Férias</h2>
+  <ul>
+    <li><b>Prisão (Camburão):</b> você fica 2 rodadas preso. Pode pagar <b>R$ 200.000</b> de fiança para sair antes, ou usar um <b>Habeas Corpus</b>.</li>
+    <li><b>Férias:</b> fica 2 rodadas sem jogar (aproveite o descanso).</li>
+  </ul>
+
+  <h2>💥 Falência</h2>
+  <p>Se o saldo ficar negativo, o jogo oferece <b>vender todas as suas propriedades ao banco pelo preço inicial</b> para continuar. Se você recusar (ou se mesmo vendendo tudo ainda ficar negativo), você <b>fali e sai da partida</b> — suas propriedades voltam ao banco e ficam disponíveis para os outros comprarem.</p>
+  <div class="box">💡 <b>Dica:</b> vender tudo ao banco pelo preço inicial costuma ser melhor do que falir, porque você mantém o caixa e pode reconstruir seu patrimônio depois.</div>
+
+  <h2>🏆 Fim de jogo</h2>
+  <p>Quando sobra só <b>um jogador ativo</b>, ele vence. Aparece o resumo com <b>patrimônio final</b>, <b>ganhos</b> e <b>perdas</b> de cada jogador.</p>
+
+  <h2>🌐 Modos de jogo</h2>
+  <ul>
+    <li><b>🤖 Potiguar084:</b> você contra a IA (1 humano + até 7 IAs).</li>
+    <li><b>🌐 Online:</b> crie uma sala (código de 4 letras) ou entre na sala de um amigo. Até 8 jogadores.</li>
+    <li><b>👥 Multiplayer local:</b> vários jogadores no mesmo aparelho, passando o turno.</li>
+  </ul>
+
+  <h2>📌 Regras rápidas (resumo)</h2>
+  <ul>
+    <li>💰 Saldo inicial: <b>R$ 2.560.000</b></li>
+    <li>💵 Salário ao passar no INÍCIO: <b>R$ 200.000</b></li>
+    <li>🏠 Aluguel sem casa: <b>10% do preço</b> (dobra por casa)</li>
+    <li>🏨 Hotel: <b>32× o valor base</b></li>
+    <li>🏦 Hipoteca: <b>50%</b> / Resgate: <b>55%</b></li>
+    <li>🚓 Fiança da prisão: <b>R$ 200.000</b></li>
+    <li>💥 Carta do Hacker: perde <b>metade do saldo</b></li>
+  </ul>
+
+  <div style="text-align:center;margin-top:30px;">
+    <button class="baixar" onclick="baixarManual()">⬇️ Baixar manual em .txt</button><br>
+    <a href="index.html" class="voltar">🏠 Voltar ao jogo</a>
+  </div>
+</div>
+
+<script>
+function baixarManual(){
+  const texto = `BANCO IMOBILIÁRIO DO RN — MANUAL DE REGRAS
+================================================
+
+OBJETIVO
+Ser o último jogador ativo. Quem falir ou sair está eliminado.
+
+SALDO INICIAL
+R$ 2.560.000 por jogador.
+
+TURNO
+1. Rolar dados. O peão anda o número sorteado.
+2. Ao passar/parar no INÍCIO, recebe R$ 200.000 de salário.
+3. Resolver a casa (comprar, pagar aluguel, carta, etc).
+4. Encerrar vez.
+5. Dupla (6+6) permite rolar de novo.
+
+PROPRIEDADES
+- Casa sem dono: pode comprar pelo preço inicial.
+- Aluguel sem casa: 10% do preço.
+- Aluguel por casa: dobra a cada casa (20%, 40%, 80%, 160%).
+- Hotel (5 construções): 32x o valor base (320%).
+- Empresas: R$ 80.000 x valor dos dados.
+- Propriedade hipotecada NÃO cobra aluguel.
+
+CONSTRUIR
+- Só com TODAS as propriedades da mesma cor.
+- Custo varia pela cor do grupo (R$ 50.000 a R$ 150.000).
+
+HIPOTECAR
+- Hipotecar rende 50% do preço.
+- Resgatar custa 55% do preço.
+
+NEGOCIAR
+- Trocar propriedades e/ou dinheiro com qualquer jogador ativo.
+
+FORTUNA (cartas)
+- Ganhos/perdas, todos pagam/te pagam, prisão, Habeas Corpus,
+  voltar ao INÍCIO com salário, ou Carta do Hacker (perde metade do saldo).
+
+PRISÃO E FÉRIAS
+- Prisão: 2 rodadas. Fiança R$ 200.000 ou Habeas Corpus.
+- Férias: 2 rodadas sem jogar.
+
+FALÊNCIA
+- Saldo negativo: o jogo oferece vender todas as propriedades ao banco
+  pelo preço inicial para continuar.
+- Se recusar ou continuar negativo após vender: FALI e sai da partida.
+- Propriedades voltam ao banco e ficam disponíveis.
+
+FIM DE JOGO
+- Sobrou 1 jogador ativo = vencedor.
+- Resumo mostra patrimônio, ganhos e perdas de cada um.
+
+MODOS
+- Potiguar084: você contra IA (até 7 IAs).
+- Online: salas com código de 4 letras, até 8 jogadores.
+- Multiplayer local: vários no mesmo aparelho.
+
+REGISTRO RÁPIDO
+- Saldo inicial: R$ 2.560.000
+- Salário: R$ 200.000
+- Aluguel sem casa: 10%
+- Hotel: 32x
+- Hipoteca: 50% / Resgate: 55%
+- Fiança: R$ 200.000
+- Carta do Hacker: perde metade do saldo
+`;
+  const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'manual-banco-imobiliario-rn.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
