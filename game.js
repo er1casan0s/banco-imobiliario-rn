@@ -491,8 +491,42 @@ async function carta(p){
   else if(tipo === 'each'){ G.p.filter(x => x!==p && !x.out).forEach(o => { o.money += v; totalGanho[o.name]+=v; p.money -= v; totalGasto[p.name]+=v; }); addLog(`${p.name} pagou a todos.`); }
   else if(tipo === 'jail'){ p.pos=10; p.jail=2; addLog(`${p.name} foi preso pela fiscalização.`); ui(); await avisoLocal('preso', p); }
   else if(tipo === 'bankrupt'){ // perde metade do saldo atual
-    const perdido = Math.max(0, Math.floor(p.money/2)); p.money -= perdido; totalGasto[p.name] += perdido;
-    addLog(`💥 ${p.name} faliu! Perdeu metade do saldo (${R(perdido)}).`); ui(); await avisoLocal('falencia', p, perdido); }
+    const perdido = Math.max(0, Math.floor(p.money/2));
+    p.money -= perdido;
+    totalGasto[p.name] += perdido;
+    addLog(`💥 ${p.name} perdeu metade do saldo (${R(perdido)}).`);
+    ui();
+    await avisoLocal('falencia', p, perdido);
+
+    // Se o saldo ficou negativo, oferece vender propriedades ao banco (preço inicial)
+    if(p.money < 0){
+        const minhasProps = T.map((c,i)=>i).filter(i => G.own[i] === G.cur);
+        if(minhasProps.length > 0){
+            const valorVenda = minhasProps.reduce((s,i)=> s + T[i].p, 0);
+            const r = await ask('🏚️ Vender propriedades?',
+                `Seu saldo está negativo (${R(p.money)}).<br>` +
+                `Você tem ${minhasProps.length} propriedade(s) que podem ser vendidas ao banco por <b>${R(valorVenda)}</b> (preço inicial).<br><br>` +
+                `Deseja vender tudo ao banco para continuar no jogo?`,
+                ['Vender e continuar', 'Não, sair do jogo']);
+
+            if(r === 0){
+                minhasProps.forEach(i => {
+                    p.money += T[i].p;
+                    totalGanho[p.name] += T[i].p;
+                    G.own[i] = -1;
+                    G.mort[i] = false;
+                    G.casas[i] = 0;
+                    G.hotel[i] = false;
+                });
+                addLog(`🏚️ ${p.name} vendeu ${minhasProps.length} propriedade(s) ao banco por ${R(valorVenda)}.`);
+                ui();
+                await avisoLocal('salario', p, valorVenda);
+            }
+        }
+        // se ainda assim ficou negativo (ou recusou), a falência é tratada em fim()
+    }
+    ui();
+}
   else if(tipo === 'free'){ p.free++; addLog(`${p.name} guardou um Habeas Corpus.`); }
   else if(tipo === 'start'){ p.pos = 0; p.money += 200000; totalGanho[p.name] += 200000; addLog(`${p.name} voltou ao Início e recebeu 200k.`); ui(); await avisoLocal('salario', p, 200000); }
   ui();
@@ -504,7 +538,38 @@ async function fim(pular){
   if(MODO === 'online') { socket.emit('avancarVez', salaAtual); return; }
 
   G.busy=true; const p=G.p[G.cur];
-  if(p.money<0){ await avisoLocal('faliu', p); p.out=true; p.money=0; T.forEach((c,i)=>{ if(G.own[i]===G.cur){G.own[i]=-1;G.mort[i]=false;} }); }
+if(p.money<0){
+    // Se ainda tem propriedades, oferece vender ao banco (preço inicial) antes de falir
+    const minhasProps = T.map((c,i)=>i).filter(i => G.own[i] === G.cur);
+    if(minhasProps.length > 0){
+        const valorVenda = minhasProps.reduce((s,i)=> s + T[i].p, 0);
+        const r = await ask('🏚️ Vender propriedades?',
+            `Seu saldo está negativo (${R(p.money)}).<br>` +
+            `Você tem ${minhasProps.length} propriedade(s) que podem ser vendidas ao banco por <b>${R(valorVenda)}</b> (preço inicial).<br><br>` +
+            `Deseja vender tudo ao banco para continuar no jogo?`,
+            ['Vender e continuar', 'Não, sair do jogo']);
+
+        if(r === 0){
+            minhasProps.forEach(i => {
+                p.money += T[i].p;
+                totalGanho[p.name] += T[i].p;
+                G.own[i] = -1;
+                G.mort[i] = false;
+                G.casas[i] = 0;
+                G.hotel[i] = false;
+            });
+            addLog(`🏚️ ${p.name} vendeu ${minhasProps.length} propriedade(s) ao banco por ${R(valorVenda)}.`);
+            await avisoLocal('salario', p, valorVenda);
+        }
+    }
+    // Se ainda continuar negativo (ou recusou vender), aí sim faliu de verdade
+    if(p.money < 0){
+        await avisoLocal('faliu', p);
+        p.out = true;
+        p.money = 0;
+        T.forEach((c,i)=>{ if(G.own[i]===G.cur){ G.own[i]=-1; G.mort[i]=false; G.casas[i]=0; G.hotel[i]=false; } });
+    }
+}
   const vivos=G.p.filter(x=>!x.out);
   if(vivos.length===1){ ui(); await fimDeJogo(vivos[0].name, MODO==='ia' && !vivos[0].ai, resumoLocal()); return; }
   do{ G.cur=(G.cur+1)%G.p.length; }while(G.p[G.cur].out);

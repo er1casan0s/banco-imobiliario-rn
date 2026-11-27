@@ -98,7 +98,25 @@ const resumoSala = sala => sala.jogadores.map((j, i) => ({
 // quem ficou com saldo negativo perde tudo e sai da partida
 function varrerFalencias(sala, cod, avisos) {
     sala.jogadores.forEach((j, i) => {
-        if (!j.out && j.money < 0) {
+        if (j.out || j.money >= 0) return;
+
+        // Se tem propriedades, vende tudo ao banco pelo preço inicial antes de falir
+        const props = T.map((c, k) => k).filter(k => sala.donos[k] === i);
+        if (props.length > 0) {
+            let valorVenda = 0;
+            props.forEach(k => {
+                valorVenda += T[k].p;
+                sala.donos[k] = -1;
+                sala.mort[k] = false;
+                sala.casas[k] = 0;
+                sala.hotel[k] = false;
+            });
+            ganhar(j, valorVenda);
+            msg(cod, `🏚️ ${j.name} vendeu ${props.length} propriedade(s) ao banco por R$ ${valorVenda.toLocaleString('pt-BR')} para continuar.`);
+        }
+
+        // Se mesmo assim continuar negativo, aí sim faliu
+        if (j.money < 0) {
             j.out = true; j.money = 0;
             liberarBens(sala, i);
             avisos.push({ tipo: 'faliu', jogadorId: j.id, nome: j.name });
@@ -257,11 +275,28 @@ io.on('connection', (socket) => {
             j.pos = 0; ganhar(j, 200000);
             avisos.push({ tipo: 'salario', jogadorId: j.id, nome: j.name, valor: 200000 });
         }
-        else if (tipo === 'bankrupt') { // falência: perde metade do saldo atual
-            const perdido = Math.max(0, Math.floor(j.money / 2));
-            perder(j, perdido);
-            avisos.push({ tipo: 'falencia', jogadorId: j.id, nome: j.name, valor: perdido });
+        else if (tipo === 'bankrupt') { // perde metade do saldo atual
+    const perdido = Math.max(0, Math.floor(j.money / 2));
+    perder(j, perdido);
+    avisos.push({ tipo: 'falencia', jogadorId: j.id, nome: j.name, valor: perdido });
+
+    // Se ficou negativo, vende propriedades ao banco (preço inicial) antes de falir
+    if (j.money < 0) {
+        const props = T.map((c, k) => k).filter(k => sala.donos[k] === sala.vezDe);
+        if (props.length > 0) {
+            let valorVenda = 0;
+            props.forEach(k => {
+                valorVenda += T[k].p;
+                sala.donos[k] = -1;
+                sala.mort[k] = false;
+                sala.casas[k] = 0;
+                sala.hotel[k] = false;
+            });
+            ganhar(j, valorVenda);
+            msg(codigo, `🏚️ ${j.name} vendeu ${props.length} propriedade(s) ao banco por R$ ${valorVenda.toLocaleString('pt-BR')} para continuar.`);
         }
+    }
+}
         varrerFalencias(sala, codigo, avisos);
         proxVez(sala);
         io.to(codigo).emit('atualizarJogo', sala);
