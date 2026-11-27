@@ -205,9 +205,11 @@ io.on('connection', (socket) => {
         } else if (casa.t === 'rf') {
             perder(j, 200000);
             acaoMsg = 'Pagou R$ 200.000 à Receita Federal';
+            avisos.push({ tipo: 'receita', jogadorId: j.id, nome: j.name, valor: 200000 });
         } else if (casa.t === 're') {
             ganhar(j, 150000);
             acaoMsg = 'Recebeu R$ 150.000 de Restituição';
+            avisos.push({ tipo: 'restituicao', jogadorId: j.id, nome: j.name, valor: 150000 });
         } else if (casa.t === 'fe') {
             j.ferias = 2;
             acaoMsg = 'Tirou férias!';

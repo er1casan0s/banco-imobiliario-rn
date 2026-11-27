@@ -91,6 +91,10 @@ function mostrarAvisos(lista) {
       t = eu ? ['💥', 'Você faliu!', `Perdeu metade do saldo: − ${R(a.valor)}`, '#d62d2d'] : ['💥', `${n} faliu!`, `Perdeu metade do saldo: − ${R(a.valor)}`, '#d62d2d'];
     else if (a.tipo === 'faliu')
       t = eu ? ['💥', 'Você perdeu tudo!', 'Você saiu da partida.', '#d62d2d'] : ['💥', `${n} perdeu tudo!`, 'Saiu da partida.', '#d62d2d'];
+    else if (a.tipo === 'receita')
+      t = eu ? ['🏛️', 'Receita Federal!', `Você pagou ${R(a.valor)} de impostos`, '#d62d2d'] : ['🏛️', `${n} caiu na Receita Federal!`, `Pagou ${R(a.valor)} de impostos`, '#d62d2d'];
+    else if (a.tipo === 'restituicao')
+      t = eu ? ['🤑', 'Restituição!', `Você recebeu + ${R(a.valor)}`, '#43a047'] : ['🤑', `${n} recebeu a Restituição!`, `+ ${R(a.valor)}`, '#43a047'];
     else return Promise.resolve();
     return aviso(...t);
   });
@@ -474,8 +478,8 @@ async function land(p){
       addLog(`${p.name} pagou ${R(v)} de aluguel a ${G.p[o].name} (${c.n})`);
       if(!p.ai) await ask('Aluguel',`Você pagou ${R(v)} a ${G.p[o].name}.`);
     }
-  } else if(c.t==='rf'){ pay(p,200000); totalGasto[p.name]+=200000; addLog(`${p.name} pagou R$ 200k à Receita.`);
-  } else if(c.t==='re'){ p.money+=150000; totalGanho[p.name]+=150000; addLog(`${p.name} recebeu R$ 150k de Restituição.`);
+  } else if(c.t==='rf'){ pay(p,200000); totalGasto[p.name]+=200000; addLog(`${p.name} pagou R$ 200k à Receita.`); ui(); await avisoLocal('receita', p, 200000);
+  } else if(c.t==='re'){ p.money+=150000; totalGanho[p.name]+=150000; addLog(`${p.name} recebeu R$ 150k de Restituição.`); ui(); await avisoLocal('restituicao', p, 150000);
   } else if(c.t==='ca'){ 
       p.pos=10; p.jail=2; addLog(`${p.name} foi preso!`);
       ui(); await avisoLocal('preso', p);
